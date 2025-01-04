@@ -4,3 +4,4 @@ certs/
 secrets/
 localhost.pem
 localhost-key.pem
+src/Auth/config.ts
