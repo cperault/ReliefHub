@@ -1,16 +1,4 @@
-import {
-  Box,
-  Button,
-  Checkbox,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  Link,
-  Stack,
-  styled,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Checkbox, FormControl, FormControlLabel, FormLabel, Link, Stack, styled, TextField, Typography } from "@mui/material";
 import MuiCard from "@mui/material/Card";
 
 import { ForgotPasswordDialog } from "./ForgotPasswordDialog";
@@ -23,8 +11,7 @@ export const SignIn = () => {
   const [emailErrorMessage, setEmailErrorMessage] = useState("");
   const [passwordError, setPasswordError] = useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = useState("");
-  const [forgotPasswordDialogIsOpen, setForgotPasswordDialogIsOpen] =
-    useState(false);
+  const [forgotPasswordDialogIsOpen, setForgotPasswordDialogIsOpen] = useState(false);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
@@ -40,10 +27,7 @@ export const SignIn = () => {
       password: submitData.get("password"),
     });
 
-    handleSignIn(
-      submitData.get("email") as string,
-      submitData.get("password") as string
-    );
+    handleSignIn(submitData.get("email") as string, submitData.get("password") as string);
   };
 
   const validateInputs = () => {
@@ -62,7 +46,6 @@ export const SignIn = () => {
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         const user = userCredential.user;
-        console.log(user);
       })
       .catch((error) => {
         const errorCode = error.code;
@@ -87,14 +70,12 @@ export const SignIn = () => {
     padding: theme.spacing(4),
     gap: theme.spacing(2),
     margin: "auto",
-    boxShadow:
-      "hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px",
+    boxShadow: "hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px",
     [theme.breakpoints.up("sm")]: {
       width: "450px",
     },
     ...theme.applyStyles("dark", {
-      boxShadow:
-        "hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px",
+      boxShadow: "hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px",
     }),
   }));
 
@@ -116,23 +97,17 @@ export const SignIn = () => {
             position: "absolute",
             zIndex: -1,
             inset: 0,
-            backgroundImage:
-              "radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))",
+            backgroundImage: "radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))",
             backgroundRepeat: "no-repeat",
             ...theme.applyStyles("dark", {
-              backgroundImage:
-                "radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))",
+              backgroundImage: "radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))",
             }),
           },
         }),
       ]}
     >
       <Card variant="outlined">
-        <Typography
-          component="h1"
-          variant="h4"
-          sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}
-        >
+        <Typography component="h1" variant="h4" sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}>
           Sign in
         </Typography>
         <Box
@@ -166,13 +141,7 @@ export const SignIn = () => {
           <FormControl>
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <FormLabel htmlFor="password">Password</FormLabel>
-              <Link
-                component="button"
-                type="button"
-                onClick={handleForgotPasswordOpen}
-                variant="body2"
-                sx={{ alignSelf: "baseline" }}
-              >
+              <Link component="button" type="button" onClick={handleForgotPasswordOpen} variant="body2" sx={{ alignSelf: "baseline" }}>
                 Forgot your password?
               </Link>
             </Box>
@@ -191,20 +160,9 @@ export const SignIn = () => {
               color={passwordError ? "error" : "primary"}
             />
           </FormControl>
-          <FormControlLabel
-            control={<Checkbox value="remember" color="primary" />}
-            label="Remember me"
-          />
-          <ForgotPasswordDialog
-            open={forgotPasswordDialogIsOpen}
-            handleClose={handleForgotPasswordClose}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            onClick={validateInputs}
-          >
+          <FormControlLabel control={<Checkbox value="remember" color="primary" />} label="Remember me" />
+          <ForgotPasswordDialog open={forgotPasswordDialogIsOpen} handleClose={handleForgotPasswordClose} />
+          <Button type="submit" fullWidth variant="contained" onClick={validateInputs}>
             Sign in
           </Button>
           <Typography sx={{ textAlign: "center" }}>
