@@ -7,10 +7,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     https: {
-      key: fs.readFileSync(
-        path.resolve(__dirname, "./certs/localhost-key.pem")
-      ),
+      key: fs.readFileSync(path.resolve(__dirname, "./certs/localhost-key.pem")),
       cert: fs.readFileSync(path.resolve(__dirname, "./certs/localhost.pem")),
     },
+    port: parseInt(process.env.BPORT || "3000", 10),
   },
 });

@@ -11,10 +11,7 @@ interface ForgotPasswordDialogProps {
   handleClose: () => void;
 }
 
-export const ForgotPasswordDialog = ({
-  open,
-  handleClose,
-}: ForgotPasswordDialogProps) => {
+export const ForgotPasswordDialog = ({ open, handleClose }: ForgotPasswordDialogProps) => {
   return (
     <Dialog
       open={open}
@@ -23,7 +20,6 @@ export const ForgotPasswordDialog = ({
         component: "form",
         onSubmit: (event: React.FormEvent<HTMLFormElement>) => {
           event.preventDefault();
-          console.log("clicked");
           // TODO: handle Firebase password reset flow, make DialogContentText dynamic (pre-submit, post-submit)
           handleClose();
         },
@@ -31,23 +27,9 @@ export const ForgotPasswordDialog = ({
       }}
     >
       <DialogTitle>Reset password</DialogTitle>
-      <DialogContent
-        sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}
-      >
-        <DialogContentText>
-          Enter the email address associated with your account to receive an
-          email with a link to reset your password.
-        </DialogContentText>
-        <OutlinedInput
-          autoFocus
-          required
-          margin="dense"
-          id="email"
-          name="email"
-          placeholder="email@example.com"
-          type="email"
-          fullWidth
-        />
+      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
+        <DialogContentText>Enter the email address associated with your account to receive an email with a link to reset your password.</DialogContentText>
+        <OutlinedInput autoFocus required margin="dense" id="email" name="email" placeholder="email@example.com" type="email" fullWidth />
       </DialogContent>
       <DialogActions sx={{ pb: 3, px: 3 }}>
         <Button onClick={handleClose}>Cancel</Button>

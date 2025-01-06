@@ -1,6 +1,6 @@
 import "./Auth/config";
 import { AppProvider } from "@toolpad/core/react-router-dom";
-import { House, Map, LockPerson } from "@mui/icons-material";
+import { Map, LockPerson } from "@mui/icons-material";
 import { DashboardLayout } from "@toolpad/core/DashboardLayout";
 import { ReliefMap } from "./components/ReliefMap/ReliefMap";
 import { SignInOut } from "./components/SignInOut/SignInOut";
@@ -14,7 +14,6 @@ import { SignUp } from "./Auth/SignUp";
 
 export const App = () => {
   const auth = useAuth();
-  console.log(auth);
   const isLoggedIn = auth === undefined ? false : true;
 
   const appProviderNavigationItems = [
@@ -53,15 +52,10 @@ export const App = () => {
           <Routes>
             <Route path="/map" element={<ReliefMap />} />
             <Route path="/about" element={<About />} />
-            <Route
-              path="/sign-in"
-              element={<SignInOut isLoggedIn={isLoggedIn} />}
-            />
+            <Route path="/sign-in" element={<SignInOut isLoggedIn={isLoggedIn} />} />
             <Route path="/sign-up" element={<SignUp />} />
-            <Route
-              path="/sign-in-out"
-              element={<SignInOut isLoggedIn={isLoggedIn} />}
-            />
+            <Route path="/sign-in-out" element={<SignInOut isLoggedIn={isLoggedIn} />} />
+            <Route path="/" element={<SignInOut isLoggedIn={isLoggedIn} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </DashboardLayout>

@@ -1,7 +1,14 @@
-node_modules/
+# backend
+backend/node_modules/
+backend/dist/
+logs/
+
+# frontend
+frontend/node_modules/
+frontend/certs/ # remove after GH Actions set up
+*/**/localhost.pem
+*/**/localhost-key.pem
+
+# global
+*.env
 .DS_Store
-certs/
-secrets/
-localhost.pem
-localhost-key.pem
-src/Auth/config.ts
