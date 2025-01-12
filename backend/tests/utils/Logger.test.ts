@@ -3,6 +3,7 @@ import { Logger, LogLevel } from "../../src/utils/Logger";
 
 jest.mock("winston", () => {
   const actualWinston = jest.requireActual("winston");
+
   return {
     ...actualWinston,
     createLogger: jest.fn(() => ({
@@ -28,13 +29,10 @@ jest.mock("winston", () => {
 describe("Logger", () => {
   let logger: Logger;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe("Initialization", () => {
     beforeEach(() => {
-      logger = new Logger();
+      jest.clearAllMocks();
+      logger = Logger.getInstance(true);
     });
 
     it("should create a winston logger with the correct levels and transports", () => {
@@ -72,7 +70,7 @@ describe("Logger", () => {
 
     it("should include a Console transport in non-production environments", () => {
       process.env.NODE_ENV = "dev";
-      logger = new Logger();
+      logger = Logger.getInstance(true);
 
       expect(winston.transports.Console).toHaveBeenCalledWith({
         format: expect.anything(),
@@ -81,7 +79,7 @@ describe("Logger", () => {
 
     it("should not include a Console transport in production environments", () => {
       process.env.NODE_ENV = "prod";
-      logger = new Logger();
+      logger = Logger.getInstance(true);
 
       expect(winston.transports.Console).not.toHaveBeenCalled();
     });
@@ -93,7 +91,7 @@ describe("Logger", () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
-      logger = new Logger();
+      logger = Logger.getInstance(true);
     });
 
     it("should call the appropriate log level methods", () => {

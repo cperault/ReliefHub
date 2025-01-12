@@ -1,57 +1,94 @@
-import { Box, Button, Checkbox, FormControl, FormControlLabel, FormLabel, Link, Stack, styled, TextField, Typography } from "@mui/material";
+import { Box, Button, FormControl, FormLabel, Link, Stack, styled, TextField, Typography } from "@mui/material";
 import MuiCard from "@mui/material/Card";
-
 import { ForgotPasswordDialog } from "./ForgotPasswordDialog";
+import { FocusEvent, FormEvent, useState } from "react";
+import { validateEmail, validatePassword } from "../utils/validation";
+import { useAuth } from "./AuthContext";
 
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { FormEvent, useState } from "react";
+const Card = styled(MuiCard)(({ theme }) => ({
+  display: "flex",
+  flexDirection: "column",
+  alignSelf: "center",
+  width: "100%",
+  padding: theme.spacing(4),
+  gap: theme.spacing(2),
+  margin: "auto",
+  boxShadow: "hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px",
+  [theme.breakpoints.up("xs")]: {
+    width: "450px",
+  },
+  ...theme.applyStyles("dark", {
+    boxShadow: "hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px",
+  }),
+}));
 
 export const SignIn = () => {
-  const [emailError, setEmailError] = useState(false);
-  const [emailErrorMessage, setEmailErrorMessage] = useState("");
-  const [passwordError, setPasswordError] = useState(false);
-  const [passwordErrorMessage, setPasswordErrorMessage] = useState("");
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [formValues, setFormValues] = useState<{ [key: string]: string }>({
+    email: "",
+    password: "",
+  });
   const [forgotPasswordDialogIsOpen, setForgotPasswordDialogIsOpen] = useState(false);
+  const { login, isLoggingIn } = useAuth();
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event?.preventDefault();
-
-    if (emailError || passwordError) {
-      return;
+  const validateField = (name: string, value: string): string | null => {
+    switch (name) {
+      case "email":
+        return validateEmail(value) ? null : "Please enter a valid email address";
+      case "password":
+        return validatePassword(value) ? null : "Password must be between 8 and 128 characters";
+      default:
+        return null;
     }
+  };
 
-    const submitData = new FormData(event.currentTarget);
+  const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
 
-    console.log({
-      email: submitData.get("email"),
-      password: submitData.get("password"),
+    if (value === "") return;
+
+    const error = validateField(name, value);
+
+    if (error !== null) {
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        [name]: error || "",
+      }));
+    }
+  };
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const { name, value } = event.target;
+
+    setFormValues((prevValues) => ({
+      ...prevValues,
+      [name]: value,
+    }));
+
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      [name]: "",
+    }));
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+
+    const newErrors: { [key: string]: string } = {};
+
+    Object.keys(formValues).forEach((name) => {
+      const error = validateField(name, formValues[name]);
+
+      if (error) {
+        newErrors[name] = error;
+      }
     });
 
-    handleSignIn(submitData.get("email") as string, submitData.get("password") as string);
-  };
+    setErrors(newErrors);
 
-  const validateInputs = () => {
-    const email = document.getElementById("email") as HTMLInputElement;
-    const password = document.getElementById("password") as HTMLInputElement;
-
-    let isValid = true;
-
-    // TODO: implement proper validation here
-
-    return isValid;
-  };
-
-  const handleSignIn = (email: string, password: string) => {
-    const auth = getAuth();
-    signInWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        const user = userCredential.user;
-      })
-      .catch((error) => {
-        const errorCode = error.code;
-        const errorMessage = error.message;
-        console.log({ errorCode, errorMessage });
-      });
+    if (Object.keys(newErrors).length === 0) {
+      login(formValues.email, formValues.password);
+    }
   };
 
   const handleForgotPasswordOpen = () => {
@@ -61,23 +98,6 @@ export const SignIn = () => {
   const handleForgotPasswordClose = () => {
     setForgotPasswordDialogIsOpen(false);
   };
-
-  const Card = styled(MuiCard)(({ theme }) => ({
-    display: "flex",
-    flexDirection: "column",
-    alignSelf: "center",
-    width: "100%",
-    padding: theme.spacing(4),
-    gap: theme.spacing(2),
-    margin: "auto",
-    boxShadow: "hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px",
-    [theme.breakpoints.up("sm")]: {
-      width: "450px",
-    },
-    ...theme.applyStyles("dark", {
-      boxShadow: "hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px",
-    }),
-  }));
 
   return (
     <Stack
@@ -113,7 +133,6 @@ export const SignIn = () => {
         <Box
           component="form"
           onSubmit={handleSubmit}
-          noValidate
           sx={{
             display: "flex",
             flexDirection: "column",
@@ -124,8 +143,8 @@ export const SignIn = () => {
           <FormControl>
             <FormLabel htmlFor="email">Email</FormLabel>
             <TextField
-              error={emailError}
-              helperText={emailErrorMessage}
+              error={!!errors.email}
+              helperText={errors.name || ""}
               id="email"
               type="email"
               name="email"
@@ -135,7 +154,10 @@ export const SignIn = () => {
               required
               fullWidth
               variant="outlined"
-              color={emailError ? "error" : "primary"}
+              color={!!errors.email ? "error" : "primary"}
+              value={formValues.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
             />
           </FormControl>
           <FormControl>
@@ -146,23 +168,24 @@ export const SignIn = () => {
               </Link>
             </Box>
             <TextField
-              error={passwordError}
-              helperText={passwordErrorMessage}
+              error={!!errors.password}
+              helperText={!!errors.password || ""}
               name="password"
               placeholder="••••••"
               type="password"
               id="password"
               autoComplete="current-password"
-              autoFocus
               required
               fullWidth
               variant="outlined"
-              color={passwordError ? "error" : "primary"}
+              color={!!errors.password ? "error" : "primary"}
+              value={formValues.password}
+              onChange={handleChange}
+              onBlur={handleBlur}
             />
           </FormControl>
-          <FormControlLabel control={<Checkbox value="remember" color="primary" />} label="Remember me" />
           <ForgotPasswordDialog open={forgotPasswordDialogIsOpen} handleClose={handleForgotPasswordClose} />
-          <Button type="submit" fullWidth variant="contained" onClick={validateInputs}>
+          <Button type="submit" fullWidth variant="contained" disabled={isLoggingIn}>
             Sign in
           </Button>
           <Typography sx={{ textAlign: "center" }}>

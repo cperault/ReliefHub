@@ -8,6 +8,7 @@ export interface LogLevels {
 }
 
 export class Logger {
+  private static instance: Logger | null = null;
   private logger: winston.Logger;
 
   private logLevels: LogLevels = {
@@ -25,13 +26,25 @@ export class Logger {
     },
   };
 
-  constructor() {
+  private constructor() {
     this.logger = winston.createLogger({
       levels: this.logLevels.levels,
       transports: this.getTransports(),
     });
 
     winston.addColors(this.logLevels.colors);
+  }
+
+  public static getInstance(reset: boolean = false): Logger {
+    if (reset || !this.instance) {
+      this.instance = new Logger();
+    }
+
+    return this.instance;
+  }
+
+  public static resetInstance(): void {
+    this.instance = null;
   }
 
   private getTransports() {

@@ -1,7 +1,9 @@
 import request from "supertest";
 import { Response } from "express";
-import createApp from "../../src/app";
+import createApp, { AppDependencies } from "../../src/app";
 import { AuthService } from "../../src/services/AuthService";
+import { FirebaseService } from "../../src/services/FirebaseService";
+import { UserService } from "../../src/services/UserService";
 
 jest.mock("../../src/controllers/AuthController", () => {
   return {
@@ -18,13 +20,25 @@ jest.mock("../../src/services/AuthService", () => {
   };
 });
 
+jest.mock("../../src/services/UserService");
+
 describe("APIRouter", () => {
+  let firebaseService: jest.Mocked<FirebaseService>;
   let authService: jest.Mocked<AuthService>;
+  let userService: jest.Mocked<UserService>;
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
-    authService = new AuthService() as jest.Mocked<AuthService>;
-    app = createApp(authService);
+    firebaseService = {
+      getFirebaseAuth: jest.fn(),
+    } as unknown as jest.Mocked<FirebaseService>;
+
+    authService = new AuthService(firebaseService) as jest.Mocked<AuthService>;
+
+    userService = {} as jest.Mocked<UserService>;
+
+    const appDependencies: AppDependencies = { authService, firebaseService, userService };
+    app = createApp(appDependencies);
   });
 
   it("should return 200 and a success message for login", async () => {

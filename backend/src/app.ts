@@ -10,6 +10,7 @@ import { APIRouter } from "./routes/APIRouter";
 import { AuthService } from "./services/AuthService";
 import { Logger } from "./utils/Logger";
 import { UserService } from "./services/UserService";
+import { FirebaseService } from "./services/FirebaseService";
 
 interface Error {
   status?: number;
@@ -20,9 +21,17 @@ interface Request extends express.Request {}
 interface Response extends express.Response {}
 interface NextFunction extends express.NextFunction {}
 
-const createApp = (authService?: AuthService, userService?: UserService) => {
+export interface AppDependencies {
+  authService: AuthService;
+  userService: UserService;
+  firebaseService: FirebaseService;
+}
+
+const createApp = (appDependencies: AppDependencies) => {
+  const { authService, userService, firebaseService } = appDependencies;
+
+  const logger = Logger.getInstance();
   const app = express();
-  const logger = new Logger();
 
   app.use(bodyParser.json());
   app.use(cookieParser());
@@ -36,7 +45,7 @@ const createApp = (authService?: AuthService, userService?: UserService) => {
   app.use(helmet());
   app.use(morgan("dev"));
 
-  const apiRouter = new APIRouter(authService, userService);
+  const apiRouter = new APIRouter(authService, userService, firebaseService);
   app.use("/api", apiRouter.getRouter());
 
   app.use((req: Request, res: Response, next: NextFunction) => {
