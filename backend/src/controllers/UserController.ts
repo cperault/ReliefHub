@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/UserService";
-import { DecodedToken } from "../middleware/AuthenticateSession";
+import { DecodedIdToken } from "firebase-admin/auth";
 
 export class UserController {
   private userService: UserService;
@@ -30,7 +30,7 @@ export class UserController {
 
   public async getUserById(req: Request, res: Response): Promise<void> {
     try {
-      const uid = (req.user as DecodedToken)?.id;
+      const uid = (req.user as DecodedIdToken)?.id;
 
       if (!uid) {
         res.status(401).json({ error: "User ID missing" });
@@ -47,7 +47,7 @@ export class UserController {
 
   public async updateUser(req: Request, res: Response): Promise<void> {
     try {
-      const uid = (req.user as DecodedToken)?.id;
+      const uid = (req.user as DecodedIdToken)?.id;
 
       if (!uid) {
         res.status(401).json({ error: "User ID missing" });

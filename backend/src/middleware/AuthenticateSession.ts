@@ -8,13 +8,6 @@ declare module "express-serve-static-core" {
   }
 }
 
-export interface DecodedToken {
-  id: string;
-  email: string;
-  iat: number;
-  exp: number;
-}
-
 export class AuthenticateSession {
   private static firebaseService: FirebaseService;
 
