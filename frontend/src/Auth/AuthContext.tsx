@@ -1,60 +1,127 @@
-import { createContext, useState, useEffect, useContext } from "react";
-import { Auth, getAuth, onAuthStateChanged } from "firebase/auth";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "../app/store";
+import { createContext, ReactNode, useContext, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useLoginMutation, useLogoutMutation, useRegisterMutation, useResetPasswordMutation, useValidateSessionQuery } from "../services/api";
+import { setAuthState } from "../features/auth/authSlice";
+import { toast } from "react-toastify";
 
-type UserAddress = {
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-};
-
-export type UserProfileType = "volunteer" | "affected";
-
-type User = {
-  emailAddress: string;
-  displayName: string;
-  phoneNumber: string;
-  userAddress?: UserAddress;
-};
-
-type AuthContextType = {
-  currentUser: User | null;
-  loading: boolean;
-};
+interface AuthContextType {
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  isLoggingIn: boolean;
+  isRegistering: boolean;
+  isLoggingOut: boolean;
+  isValidatingSession: boolean;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-import { ReactNode } from "react";
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setIsLoading] = useState(true);
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+  const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+  const [register, { isLoading: isRegistering }] = useRegisterMutation();
+  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
+  const [resetPassword] = useResetPasswordMutation();
+  const { data: validateSessionData, isLoading: isValidatingSession } = useValidateSessionQuery();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
-    const auth: Auth = getAuth();
-
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const mappedUser: User = {
-          emailAddress: user.email || "",
-          displayName: user.displayName || "",
-          phoneNumber: user.phoneNumber || "",
-        };
-        setCurrentUser(mappedUser);
+    if (validateSessionData) {
+      if (validateSessionData?.valid) {
+        dispatch(setAuthState({ isAuthenticated: true, user: validateSessionData.user }));
       } else {
-        setCurrentUser(null);
+        dispatch(setAuthState({ isAuthenticated: false, user: undefined }));
       }
-      setIsLoading(false);
-    });
+    }
+  }, [validateSessionData, dispatch]);
 
-    return unsubscribe;
-  }, []);
+  const errorMessages: { [key: string]: string } = {
+    "auth/invalid-credential": "Incorrect email or password. Please try again.",
+    // TOOO: add more Firebase error codes as necessary
+  };
+
+  const getErrorMessage = (errorCode: string): string => {
+    return errorMessages[errorCode] || "An unknown error occurred. Please try again.";
+  };
+
+  const handleLogin = async (email: string, password: string): Promise<void> => {
+    try {
+      const { user } = await login({ email, password }).unwrap();
+      dispatch(setAuthState({ isAuthenticated: true, user }));
+      navigate("/map");
+    } catch (error) {
+      const errorMessage = getErrorMessage((error as { code: string }).code);
+      toast.error(errorMessage);
+      console.error("Login failed:", error);
+    }
+  };
+
+  const handleRegister = async (email: string, password: string): Promise<void> => {
+    try {
+      const { user } = await register({ email, password }).unwrap();
+      dispatch(setAuthState({ isAuthenticated: true, user }));
+      navigate("/sign-in");
+    } catch (error) {
+      const errorMessage = getErrorMessage((error as { code: string }).code);
+      toast.error(errorMessage);
+      console.error("Register failed:", error);
+    }
+  };
+
+  const handleLogout = async (): Promise<void> => {
+    try {
+      await logout().unwrap();
+      dispatch(setAuthState({ isAuthenticated: false, user: undefined }));
+      navigate("/sign-in");
+    } catch (error) {
+      const errorMessage = getErrorMessage((error as { code: string }).code);
+      toast.error(errorMessage);
+      console.error("Logout failed:", error);
+    }
+  };
+
+  const handleResetPassword = async (email: string): Promise<void> => {
+    try {
+      await resetPassword({ email }).unwrap();
+      dispatch(setAuthState({ isAuthenticated: false, user: undefined }));
+      navigate("/sign-in");
+    } catch (error) {
+      const errorMessage = getErrorMessage((error as { code: string }).code);
+      toast.error(errorMessage);
+      console.error("Reset password failed:", error);
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading }}>
-      {children}
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        login: handleLogin,
+        register: handleRegister,
+        logout: handleLogout,
+        resetPassword: handleResetPassword,
+        isLoggingIn,
+        isRegistering,
+        isLoggingOut,
+        isValidatingSession,
+      }}
+    >
+      {!isValidatingSession && children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+
+  return context;
+};

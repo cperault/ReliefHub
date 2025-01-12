@@ -1,6 +1,8 @@
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, Auth } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, Auth } from "firebase/auth";
 import { AuthService } from "../../src/services/AuthService";
+import { FirebaseService } from "../../src/services/FirebaseService";
 
+jest.mock("../../src/services/FirebaseService");
 jest.mock("firebase/auth", () => ({
   getAuth: jest.fn(),
   signInWithEmailAndPassword: jest.fn(),
@@ -8,20 +10,27 @@ jest.mock("firebase/auth", () => ({
 }));
 
 describe("AuthService", () => {
+  let mockFirebaseService: jest.Mocked<FirebaseService>;
   let authService: AuthService;
   let mockAuth: Auth;
 
   beforeEach(() => {
+    mockFirebaseService = {
+      getFirebaseAuth: jest.fn(),
+      getAdminAuth: jest.fn(),
+    } as unknown as jest.Mocked<FirebaseService>;
+
     mockAuth = {
       currentUser: { getIdToken: jest.fn().mockResolvedValue("mockToken") },
     } as any;
 
-    (getAuth as jest.Mock).mockReturnValue(mockAuth);
-    authService = new AuthService();
+    mockFirebaseService.getFirebaseAuth.mockReturnValue(mockAuth);
+
+    authService = new AuthService(mockFirebaseService);
   });
 
   describe("authenticateUser", () => {
-    it("should call getAuth when authenticateUser is called", async () => {
+    it("should call getFirebaseAuth when authenticateUser is called", async () => {
       const mockUserCredential = {
         user: { getIdToken: jest.fn().mockResolvedValue("mockToken") },
       };
@@ -29,7 +38,7 @@ describe("AuthService", () => {
 
       await authService.authenticateUser("test@example.com", "password123");
 
-      expect(getAuth).toHaveBeenCalled();
+      expect(mockFirebaseService.getFirebaseAuth).toHaveBeenCalled();
     });
 
     it("should return a token on successful login", async () => {
@@ -65,7 +74,7 @@ describe("AuthService", () => {
   });
 
   describe("registerUser", () => {
-    it("should call getAuth when regiserUser is called", async () => {
+    it("should call getFirebaseAuth when registerUser is called", async () => {
       const mockUserCredential = {
         user: { getIdToken: jest.fn().mockResolvedValue("mockToken") },
       };
@@ -73,7 +82,7 @@ describe("AuthService", () => {
 
       await authService.registerUser("test@example.com", "password123");
 
-      expect(getAuth).toHaveBeenCalled();
+      expect(mockFirebaseService.getFirebaseAuth).toHaveBeenCalled();
     });
 
     it("should return a token on successful registration", async () => {

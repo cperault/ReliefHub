@@ -1,9 +1,19 @@
 import { createRoot } from "react-dom/client";
-import { App } from "./App.tsx";
+import { Provider } from "react-redux";
 import { BrowserRouter } from "react-router-dom";
+import { store } from "./app/store.ts";
+import { App } from "./App.tsx";
+import { AuthProvider } from "./Auth/AuthContext.tsx";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 createRoot(document.getElementById("root")!).render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
+  <Provider store={store}>
+    <BrowserRouter>
+      <AuthProvider>
+        <ToastContainer position="top-right" autoClose={5000} />
+        <App />
+      </AuthProvider>
+    </BrowserRouter>
+  </Provider>,
 );

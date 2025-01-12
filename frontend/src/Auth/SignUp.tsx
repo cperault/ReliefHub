@@ -1,10 +1,11 @@
 import { Box, Button, Divider, FormControl, FormLabel, Link, Stack, styled, TextField, Typography } from "@mui/material";
 import MuiCard from "@mui/material/Card";
 import { HandshakeOutlined, LocalShippingOutlined } from "@mui/icons-material";
-import { FormEvent, useState } from "react";
-import { redirect } from "react-router-dom";
+import { FocusEvent, FormEvent, useState } from "react";
+import { validateEmail, validateName, validatePassword } from "../utils/validation";
+import { useAuth } from "./AuthContext";
 
-const signInContentItems = [
+const signUpContentItems = [
   {
     icon: <HandshakeOutlined sx={{ color: "text.primary" }} fontSize="large" />,
     title: "Relief Starts Here. Get Connected.",
@@ -18,7 +19,7 @@ const signInContentItems = [
   },
 ];
 
-const SignInSideContent = () => {
+const SignUpSideContent = () => {
   return (
     <Stack
       sx={{
@@ -28,7 +29,7 @@ const SignInSideContent = () => {
         maxWidth: 350,
       }}
     >
-      {signInContentItems.map((item, index) => (
+      {signUpContentItems.map((item, index) => (
         <Stack key={index} direction="row" sx={{ gap: 2, alignItems: "center" }}>
           {item.icon}
           <div>
@@ -45,71 +46,93 @@ const SignInSideContent = () => {
   );
 };
 
+const Card = styled(MuiCard)(({ theme }) => ({
+  display: "flex",
+  flexDirection: "column",
+  alignSelf: "center",
+  width: "100%",
+  padding: theme.spacing(4),
+  gap: theme.spacing(2),
+  margin: "auto",
+  boxShadow: "hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px",
+  [theme.breakpoints.up("xs")]: {
+    width: "450px",
+  },
+  ...theme.applyStyles("dark", {
+    boxShadow: "hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px",
+  }),
+}));
+
 export const SignUp = () => {
-  const [emailError, setEmailError] = useState(false);
-  const [emailErrorMessage, setEmailErrorMessage] = useState("");
-  const [passwordError, setPasswordError] = useState(false);
-  const [passwordErrorMessage, setPasswordErrorMessage] = useState("");
-  const [nameError, setNameError] = useState(false);
-  const [nameErrorMessage, setNameErrorMessage] = useState("");
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [formValues, setFormValues] = useState<{ [key: string]: string }>({
+    name: "",
+    email: "",
+    password: "",
+  });
+  const { register, isRegistering } = useAuth();
 
-  const validateInputs = (data: FormData) => {
-    let isValid = true;
-
-    const email = data.get("email") as string;
-    const password = data.get("password") as string;
-    const name = data.get("name") as string;
-
-    return isValid;
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const data = new FormData(event.currentTarget);
-
-    console.log({
-      name: data.get("name"),
-      email: data.get("email"),
-      password: data.get("password"),
-    });
-
-    if (validateInputs(data)) {
-      const request = await fetch("https://localhost:4000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: data.get("email"),
-          password: data.get("password"),
-        }),
-      });
-
-      const response = await request.json();
-
-      if (response.status === 201) {
-        redirect("/sign-in");
-      }
+  const validateField = (name: string, value: string): string | null => {
+    switch (name) {
+      case "email":
+        return validateEmail(value) ? null : "Please enter a valid email address";
+      case "password":
+        return validatePassword(value) ? null : "Password must be between 8 and 128 characters";
+      case "name":
+        return validateName(value) ? null : "Please enter a valid name";
+      default:
+        return null;
     }
   };
 
-  const Card = styled(MuiCard)(({ theme }) => ({
-    display: "flex",
-    flexDirection: "column",
-    alignSelf: "center",
-    width: "100%",
-    padding: theme.spacing(4),
-    gap: theme.spacing(2),
-    margin: "auto",
-    boxShadow: "hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px",
-    [theme.breakpoints.up("sm")]: {
-      width: "450px",
-    },
-    ...theme.applyStyles("dark", {
-      boxShadow: "hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px",
-    }),
-  }));
+  const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+
+    if (value === "") return;
+
+    const error = validateField(name, value);
+
+    if (error !== null) {
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        [name]: error || "",
+      }));
+    }
+  };
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const { name, value } = event.target;
+
+    setFormValues((prevValues) => ({
+      ...prevValues,
+      [name]: value,
+    }));
+
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      [name]: "",
+    }));
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+
+    const newErrors: { [key: string]: string } = {};
+
+    Object.keys(formValues).forEach((name) => {
+      const error = validateField(name, formValues[name]);
+
+      if (error) {
+        newErrors[name] = error;
+      }
+    });
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length === 0) {
+      register(formValues.email, formValues.password);
+    }
+  };
 
   return (
     <Stack
@@ -146,7 +169,7 @@ export const SignUp = () => {
           m: "auto",
         }}
       >
-        <SignInSideContent />
+        <SignUpSideContent />
         <Card>
           <Typography component="h1" variant="h4" sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}>
             Sign up
@@ -162,9 +185,12 @@ export const SignUp = () => {
                 fullWidth
                 id="name"
                 placeholder="Jon Snow"
-                error={nameError}
-                helperText={nameErrorMessage}
-                color={nameError ? "error" : "primary"}
+                error={!!errors.name}
+                helperText={errors.name || ""}
+                color={!!errors.name ? "error" : "primary"}
+                value={formValues.name}
+                onChange={handleChange}
+                onBlur={handleBlur}
               />
             </FormControl>
             <FormControl>
@@ -177,9 +203,12 @@ export const SignUp = () => {
                 name="email"
                 autoComplete="email"
                 variant="outlined"
-                error={emailError}
-                helperText={emailErrorMessage}
-                color={passwordError ? "error" : "primary"}
+                error={!!errors.email}
+                helperText={errors.email || ""}
+                color={!!errors.email ? "error" : "primary"}
+                value={formValues.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
               />
             </FormControl>
             <FormControl>
@@ -193,12 +222,15 @@ export const SignUp = () => {
                 id="password"
                 autoComplete="new-password"
                 variant="outlined"
-                error={passwordError}
-                helperText={passwordErrorMessage}
-                color={passwordError ? "error" : "primary"}
+                error={!!errors.password}
+                helperText={errors.password || ""}
+                color={!!errors.password ? "error" : "primary"}
+                value={formValues.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
               />
             </FormControl>
-            <Button type="submit" fullWidth variant="contained">
+            <Button type="submit" fullWidth variant="contained" disabled={isRegistering}>
               Sign up
             </Button>
           </Box>

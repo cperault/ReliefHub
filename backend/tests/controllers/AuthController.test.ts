@@ -1,17 +1,40 @@
 import request from "supertest";
-import createApp from "../../src/app";
+import createApp, { AppDependencies } from "../../src/app";
 import { AuthService } from "../../src/services/AuthService";
+import { FirebaseService } from "../../src/services/FirebaseService";
+import { UserService } from "../../src/services/UserService";
 
 jest.mock("../../src/services/AuthService");
+jest.mock("../../src/services/FirebaseService");
+jest.mock("../../src/services/UserService");
 
 describe("AuthController", () => {
+  let firebaseService: jest.Mocked<FirebaseService>;
   let authService: jest.Mocked<AuthService>;
+  let userService: jest.Mocked<UserService>;
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
     process.env.JWT_SECRET_KEY = "test-secret-key";
-    authService = new AuthService() as jest.Mocked<AuthService>;
-    app = createApp(authService);
+
+    authService = {
+      authenticateUser: jest.fn().mockResolvedValue({
+        token: "mockToken",
+      }),
+      registerUser: jest.fn().mockResolvedValue({
+        user: { id: "mockUserId", email: "test@example.com" },
+      }),
+      verifyToken: jest.fn().mockResolvedValue({ uid: "test-uid", email: "test@example.com" }),
+    } as unknown as jest.Mocked<AuthService>;
+
+    firebaseService = {
+      getFirebaseAuth: jest.fn().mockReturnValue({}),
+    } as unknown as jest.Mocked<FirebaseService>;
+
+    userService = {} as jest.Mocked<UserService>;
+
+    const appDependencies: AppDependencies = { authService, userService, firebaseService };
+    app = createApp(appDependencies);
   });
 
   afterEach(() => {
@@ -30,7 +53,7 @@ describe("AuthController", () => {
       expect(authService.verifyToken).toHaveBeenCalledWith(mockToken);
       expect(response.status).toBe(200);
       expect(response.headers["set-cookie"]).toBeDefined();
-      expect(response.body.message).toBe("Registration successful");
+      expect(response.body.message).toBe("Login successful");
 
       const cookie = response.headers["set-cookie"][0];
       expect(cookie).toContain("HttpOnly");

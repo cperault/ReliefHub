@@ -1,14 +1,15 @@
 # backend
 backend/node_modules/
 backend/dist/
+backend/certs/ 
 logs/
 
 # frontend
 frontend/node_modules/
-frontend/certs/ # remove after GH Actions set up
-*/**/localhost.pem
-*/**/localhost-key.pem
+frontend/certs/
 
 # global
+*/**/localhost.pem
+*/**/localhost-key.pem
 *.env
 .DS_Store
