@@ -1,15 +1,16 @@
 import request from "supertest";
 import { Response } from "express";
 import createApp, { AppDependencies } from "../../src/app";
-import { AuthService } from "../../src/services/AuthService";
 import { FirebaseService } from "../../src/services/FirebaseService";
-import { UserService } from "../../src/services/UserService";
 
 jest.mock("../../src/controllers/AuthController", () => {
   return {
     AuthController: jest.fn().mockImplementation(() => ({
       login: (req: Request, res: Response) => res.status(200).json({ message: "Login successful" }),
       register: (req: Request, res: Response) => res.status(201).json({ message: "Registration successful" }),
+      logout: (req: Request, res: Response) => res.status(204).end(),
+      resetPassword: (req: Request, res: Response) => res.status(202).json({ message: "Password reset email sent" }),
+      validateSession: (req: Request, res: Response) => res.status(200).json({ valid: true, user: { uid: "test-uid", email: "email@example.com" } }),
     })),
   };
 });
@@ -20,12 +21,14 @@ jest.mock("../../src/services/AuthService", () => {
   };
 });
 
-jest.mock("../../src/services/UserService");
+jest.mock("../../src/services/UserService", () => {
+  return {
+    UserService: jest.fn().mockImplementation(() => ({})),
+  };
+});
 
 describe("APIRouter", () => {
   let firebaseService: jest.Mocked<FirebaseService>;
-  let authService: jest.Mocked<AuthService>;
-  let userService: jest.Mocked<UserService>;
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
@@ -33,11 +36,7 @@ describe("APIRouter", () => {
       getFirebaseAuth: jest.fn(),
     } as unknown as jest.Mocked<FirebaseService>;
 
-    authService = new AuthService(firebaseService) as jest.Mocked<AuthService>;
-
-    userService = {} as jest.Mocked<UserService>;
-
-    const appDependencies: AppDependencies = { authService, firebaseService, userService };
+    const appDependencies: AppDependencies = { firebaseService };
     app = createApp(appDependencies);
   });
 
@@ -51,5 +50,23 @@ describe("APIRouter", () => {
     const response = await request(app).post("/api/auth/register").send();
     expect(response.status).toBe(201);
     expect(response.body).toEqual({ message: "Registration successful" });
+  });
+
+  it("should return 204 and an empty body for logout", async () => {
+    const response = await request(app).post("/api/auth/logout").send();
+    expect(response.status).toBe(204);
+    expect(response.body).toEqual({});
+  });
+
+  it("should return 202 and a success message for password reset", async () => {
+    const response = await request(app).post("/api/auth/reset-password").send();
+    expect(response.status).toBe(202);
+    expect(response.body).toEqual({ message: "Password reset email sent" });
+  });
+
+  it("should return 200 and a success message for session validation", async () => {
+    const response = await request(app).get("/api/auth/validate-session").send();
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ valid: true, user: { uid: "test-uid", email: "email@example.com" } });
   });
 });

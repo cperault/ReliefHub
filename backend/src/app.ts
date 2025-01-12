@@ -11,6 +11,7 @@ import { AuthService } from "./services/AuthService";
 import { Logger } from "./utils/Logger";
 import { UserService } from "./services/UserService";
 import { FirebaseService } from "./services/FirebaseService";
+import { AuthenticateSession } from "./middleware/AuthenticateSession";
 
 interface Error {
   status?: number;
@@ -22,13 +23,16 @@ interface Response extends express.Response {}
 interface NextFunction extends express.NextFunction {}
 
 export interface AppDependencies {
-  authService: AuthService;
-  userService: UserService;
   firebaseService: FirebaseService;
 }
 
 const createApp = (appDependencies: AppDependencies) => {
-  const { authService, userService, firebaseService } = appDependencies;
+  const { firebaseService } = appDependencies;
+
+  const authService = new AuthService(firebaseService);
+  const userService = new UserService(firebaseService);
+
+  AuthenticateSession.initializeFirebaseService(firebaseService); // for middleware of non /api/auth routes
 
   const logger = Logger.getInstance();
   const app = express();
@@ -45,7 +49,7 @@ const createApp = (appDependencies: AppDependencies) => {
   app.use(helmet());
   app.use(morgan("dev"));
 
-  const apiRouter = new APIRouter(authService, userService, firebaseService);
+  const apiRouter = new APIRouter(authService, userService);
   app.use("/api", apiRouter.getRouter());
 
   app.use((req: Request, res: Response, next: NextFunction) => {

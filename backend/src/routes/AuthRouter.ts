@@ -1,15 +1,13 @@
 import { BaseRouter } from "./BaseRouter";
 import { AuthController } from "../controllers/AuthController";
 import { AuthService } from "../services/AuthService";
-import { FirebaseService } from "../services/FirebaseService";
 
 export class AuthRouter extends BaseRouter {
   private authController: AuthController;
 
-  constructor(firebaseService: FirebaseService, authService?: AuthService) {
+  constructor(authService: AuthService) {
     super();
-    const service = authService || new AuthService(firebaseService);
-    this.authController = new AuthController(service);
+    this.authController = new AuthController(authService);
   }
 
   protected initializeRoutes(): void {

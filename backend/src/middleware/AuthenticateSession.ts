@@ -1,9 +1,10 @@
 import { NextFunction, Request, Response } from "express";
-import jwt, { JwtPayload } from "jsonwebtoken";
+import { FirebaseService } from "../services/FirebaseService";
+import { DecodedIdToken } from "firebase-admin/auth";
 
 declare module "express-serve-static-core" {
   interface Request {
-    user?: JwtPayload | string;
+    user?: DecodedIdToken;
   }
 }
 
@@ -15,6 +16,12 @@ export interface DecodedToken {
 }
 
 export class AuthenticateSession {
+  private static firebaseService: FirebaseService;
+
+  public static initializeFirebaseService(firebaseService: FirebaseService): void {
+    AuthenticateSession.firebaseService = firebaseService;
+  }
+
   public static verifyToken(req: Request, res: Response, next: NextFunction): void {
     try {
       const sessionToken = req.cookies.sessionToken;
@@ -24,16 +31,15 @@ export class AuthenticateSession {
         return;
       }
 
-      jwt.verify(sessionToken, process.env.JWT_SECRET_KEY as string, {}, (error: jwt.VerifyErrors | null, decoded: string | jwt.JwtPayload | undefined) => {
-        if (error) {
+      AuthenticateSession.firebaseService
+        .verifySessionCookie(sessionToken)
+        .then((decodedToken: DecodedIdToken) => {
+          req.user = decodedToken;
+          next();
+        })
+        .catch(() => {
           res.status(401).json({ error: "Invalid or expired token" });
-          return;
-        }
-
-        req.user = decoded as DecodedToken;
-
-        next();
-      });
+        });
     } catch (error: unknown) {
       res.status(401).json({ error: "Authentication failed" });
       return;
