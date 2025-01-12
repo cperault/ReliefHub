@@ -20,7 +20,7 @@ export class AuthController {
         try {
           const sessionCookie = await this.authService.createSessionCookie(result.token);
 
-          const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+          const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days, equivalent to Max-Age=432000
           res.cookie("sessionToken", sessionCookie, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "prod",
@@ -74,7 +74,7 @@ export class AuthController {
         sameSite: "strict",
       });
 
-      res.status(200).json({ message: "Logout successful" });
+      res.status(204).end();
     } catch (error: unknown) {
       this.sendUnknownErrorResponse(res, 500, error);
     }

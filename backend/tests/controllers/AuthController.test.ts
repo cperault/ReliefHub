@@ -25,6 +25,7 @@ describe("AuthController", () => {
         user: { id: "mockUserId", email: "test@example.com" },
       }),
       verifyToken: jest.fn().mockResolvedValue({ uid: "test-uid", email: "test@example.com" }),
+      createSessionCookie: jest.fn().mockResolvedValue("mock-session-cookie"),
     } as unknown as jest.Mocked<AuthService>;
 
     firebaseService = {
@@ -33,7 +34,11 @@ describe("AuthController", () => {
 
     userService = {} as jest.Mocked<UserService>;
 
-    const appDependencies: AppDependencies = { authService, userService, firebaseService };
+    const appDependencies: AppDependencies = { firebaseService };
+
+    (AuthService as jest.Mock) = jest.fn().mockImplementation(() => authService);
+    (UserService as jest.Mock) = jest.fn().mockImplementation(() => userService);
+    (FirebaseService as jest.Mock) = jest.fn().mockImplementation(() => firebaseService);
     app = createApp(appDependencies);
   });
 
@@ -58,7 +63,7 @@ describe("AuthController", () => {
       const cookie = response.headers["set-cookie"][0];
       expect(cookie).toContain("HttpOnly");
       expect(cookie).toContain("SameSite=Strict");
-      expect(cookie).toContain("Max-Age=3600");
+      expect(cookie).toContain("Max-Age=432000");
     });
 
     it("should return 400 when login fails due to invalid credentials", async () => {

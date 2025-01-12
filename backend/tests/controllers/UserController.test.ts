@@ -1,7 +1,5 @@
 import request from "supertest";
 import createApp, { AppDependencies } from "../../src/app";
-import { AuthService } from "../../src/services/AuthService";
-import { UserService } from "../../src/services/UserService";
 import { FirebaseService } from "../../src/services/FirebaseService";
 
 jest.mock("../../src/services/AuthService");
@@ -9,8 +7,6 @@ jest.mock("../../src/services/UserService");
 
 describe("UserController", () => {
   let firebaseService: jest.Mocked<FirebaseService>;
-  let authService: jest.Mocked<AuthService>;
-  let userService: jest.Mocked<UserService>;
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
@@ -19,10 +15,7 @@ describe("UserController", () => {
       getFirestore: jest.fn(),
     } as unknown as jest.Mocked<FirebaseService>;
 
-    authService = new AuthService(firebaseService) as jest.Mocked<AuthService>;
-    userService = new UserService(firebaseService) as jest.Mocked<UserService>;
-
-    const appDependencies: AppDependencies = { authService, userService, firebaseService };
+    const appDependencies: AppDependencies = { firebaseService };
     app = createApp(appDependencies);
   });
 

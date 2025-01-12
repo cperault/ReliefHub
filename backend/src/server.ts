@@ -3,8 +3,6 @@ import https from "https";
 import { Logger } from "./utils/Logger";
 import fs from "fs";
 import path from "path";
-import { AuthService } from "./services/AuthService";
-import { UserService } from "./services/UserService";
 import { FirebaseService } from "./services/FirebaseService";
 
 const PORT = parseInt(process.env.BPORT || "4000", 10);
@@ -18,15 +16,9 @@ const sslOptions = {
 };
 
 const firebaseService = new FirebaseService();
-const authService = new AuthService(firebaseService);
-const userService = new UserService(firebaseService);
 const logger = Logger.getInstance();
 
-const appDependencies: AppDependencies = {
-  authService,
-  userService,
-  firebaseService,
-};
+const appDependencies: AppDependencies = { firebaseService };
 
 const app = createApp(appDependencies);
 

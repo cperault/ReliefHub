@@ -2,15 +2,13 @@ import { BaseRouter } from "./BaseRouter";
 import { UserController } from "../controllers/UserController";
 import { AuthenticateSession } from "../middleware/AuthenticateSession";
 import { UserService } from "../services/UserService";
-import { FirebaseService } from "../services/FirebaseService";
 
 export class UserRouter extends BaseRouter {
   private userController: UserController;
 
-  constructor(firebaseService: FirebaseService, userService?: UserService) {
+  constructor(userService: UserService) {
     super();
-    const service = userService || new UserService(firebaseService);
-    this.userController = new UserController(service);
+    this.userController = new UserController(userService);
   }
 
   protected initializeRoutes(): void {

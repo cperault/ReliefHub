@@ -3,7 +3,7 @@ import admin from "firebase-admin";
 import { initializeApp, FirebaseApp, getApps, getApp } from "firebase/app";
 import { Firestore, getFirestore } from "firebase/firestore";
 import { App } from "firebase-admin/app";
-import { Auth as AdminAuth } from "firebase-admin/auth";
+import { Auth as AdminAuth, DecodedIdToken } from "firebase-admin/auth";
 
 export type FirebaseConfig = {
   apiKey: string;
@@ -55,5 +55,9 @@ export class FirebaseService {
 
   getAdminAuth(): AdminAuth {
     return admin.auth();
+  }
+
+  async verifySessionCookie(sessionToken: string): Promise<DecodedIdToken> {
+    return this.getAdminAuth().verifySessionCookie(sessionToken);
   }
 }
