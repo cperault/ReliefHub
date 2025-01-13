@@ -49,7 +49,7 @@ describe("AuthService", () => {
 
       const result = await authService.authenticateUser("test@example.com", "password123");
 
-      expect(result.token).toBe("mockToken");
+      expect(result?.token).toBe("mockToken");
       expect(signInWithEmailAndPassword).toHaveBeenCalledWith(expect.any(Object), "test@example.com", "password123");
     });
 
@@ -59,17 +59,17 @@ describe("AuthService", () => {
 
       const result = await authService.authenticateUser("test@example.com", "wrongpassword");
 
-      expect(result.error).toBeDefined();
-      expect(result.error?.code).toBe("unknown_error");
-      expect(result.error?.message).toBe("An unknown error occurred.");
+      expect(result?.error).toBeDefined();
+      expect(result?.error?.code).toBe("unknown_error");
+      expect(result?.error?.message).toBe("An unknown error occurred.");
     });
 
     it("should return an error when email or password is empty", async () => {
       const result = await authService.authenticateUser("", "");
 
-      expect(result.error).toBeDefined();
-      expect(result.error?.code).toBe("unknown_error");
-      expect(result.error?.message).toBe("An unknown error occurred.");
+      expect(result?.error).toBeDefined();
+      expect(result?.error?.code).toBe("unknown_error");
+      expect(result?.error?.message).toBe("An unknown error occurred.");
     });
   });
 
@@ -93,7 +93,7 @@ describe("AuthService", () => {
 
       const result = await authService.registerUser("test@example.com", "password123");
 
-      expect(result.token).toBe("mockToken");
+      expect(result?.token).toBe("mockToken");
       expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(expect.any(Object), "test@example.com", "password123");
     });
 
@@ -103,9 +103,9 @@ describe("AuthService", () => {
 
       const result = await authService.registerUser("test@example.com", "password123");
 
-      expect(result.error).toBeDefined();
-      expect(result.error?.code).toBe("unknown_error");
-      expect(result.error?.message).toBe("An unknown error occurred.");
+      expect(result?.error).toBeDefined();
+      expect(result?.error?.code).toBe("unknown_error");
+      expect(result?.error?.message).toBe("An unknown error occurred.");
     });
   });
 

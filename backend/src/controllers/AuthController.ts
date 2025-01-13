@@ -13,22 +13,31 @@ export class AuthController {
   };
 
   private handleAuthResponse = async (res: Response, result: AuthResult, successStatusCode: number): Promise<void> => {
-    if (result.token) {
+    if (result?.token) {
       const tokenVerificationResult: TokenVerificationResult | null = await this.authService.verifyToken(result.token);
 
       if (tokenVerificationResult) {
+        const isRegistration = successStatusCode === 201;
+
         try {
-          const sessionCookie = await this.authService.createSessionCookie(result.token);
+          if (!isRegistration) {
+            const sessionCookie = await this.authService.createSessionCookie(result.token);
 
-          const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days, equivalent to Max-Age=432000
-          res.cookie("sessionToken", sessionCookie, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "prod",
-            sameSite: "strict",
-            maxAge: expiresIn,
-          });
+            const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days, equivalent to Max-Age=432000
+            res.cookie("sessionToken", sessionCookie, {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === "prod",
+              sameSite: "strict",
+              maxAge: expiresIn,
+            });
+          }
 
-          res.status(successStatusCode).json({ user: result.user, message: `${successStatusCode === 201 ? `Registration` : `Login`} successful` });
+          res.status(successStatusCode).json({ user: result.user, message: `${isRegistration ? `Registration` : `Login`} successful` });
+
+          // if user just registered, send verification email
+          if (isRegistration && result.user) {
+            await this.authService.sendVerificationEmail(result.user);
+          }
         } catch (error) {
           res.status(500).json({ error: "Error creating session cookie" });
         }
@@ -36,7 +45,7 @@ export class AuthController {
         res.status(400).json({ error: "Invalid token" });
       }
     } else {
-      res.status(400).json({ error: result.error });
+      res.status(400).json({ error: result?.error });
     }
   };
 
@@ -84,9 +93,9 @@ export class AuthController {
     try {
       const { email } = req.body;
 
-      const result = await this.authService.resetPassword(email);
+      await this.authService.resetPassword(email);
 
-      await this.handleAuthResponse(res, result, 202);
+      res.status(202).end();
     } catch (error: unknown) {
       this.sendUnknownErrorResponse(res, 500, error);
     }

@@ -99,7 +99,7 @@ describe("AuthController", () => {
   });
 
   describe("POST /api/auth/register", () => {
-    it("should return 201 and set a session cookie on successful registration", async () => {
+    it("should return 201 on a successful registration", async () => {
       const mockToken = "mock-registration-token";
       authService.registerUser.mockResolvedValue({ token: mockToken });
       authService.verifyToken.mockResolvedValue({ uid: "new-uid", email: "newuser@example.com" });
@@ -109,7 +109,6 @@ describe("AuthController", () => {
       expect(authService.registerUser).toHaveBeenCalledWith("newuser@example.com", "password123");
       expect(authService.verifyToken).toHaveBeenCalledWith(mockToken);
       expect(response.status).toBe(201);
-      expect(response.headers["set-cookie"]).toBeDefined();
       expect(response.body.message).toBe("Registration successful");
     });
 

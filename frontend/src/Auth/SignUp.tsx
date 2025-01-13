@@ -1,9 +1,9 @@
 import { Box, Button, Divider, FormControl, FormLabel, Link, Stack, styled, TextField, Typography } from "@mui/material";
 import MuiCard from "@mui/material/Card";
 import { HandshakeOutlined, LocalShippingOutlined } from "@mui/icons-material";
-import { FocusEvent, FormEvent, useState } from "react";
-import { validateEmail, validateName, validatePassword } from "../utils/validation";
-import { useAuth } from "./AuthContext";
+import { ChangeEvent, FocusEvent, FormEvent, useState } from "react";
+import { validateEmail, validatePassword } from "../utils/validation";
+import { useAuth } from "./useAuth";
 
 const signUpContentItems = [
   {
@@ -66,7 +66,6 @@ const Card = styled(MuiCard)(({ theme }) => ({
 export const SignUp = () => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [formValues, setFormValues] = useState<{ [key: string]: string }>({
-    name: "",
     email: "",
     password: "",
   });
@@ -78,8 +77,6 @@ export const SignUp = () => {
         return validateEmail(value) ? null : "Please enter a valid email address";
       case "password":
         return validatePassword(value) ? null : "Password must be between 8 and 128 characters";
-      case "name":
-        return validateName(value) ? null : "Please enter a valid name";
       default:
         return null;
     }
@@ -100,7 +97,7 @@ export const SignUp = () => {
     }
   };
 
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = event.target;
 
     setFormValues((prevValues) => ({
@@ -130,9 +127,11 @@ export const SignUp = () => {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      register(formValues.email, formValues.password);
+      await register(formValues.email, formValues.password);
     }
   };
+
+  const isSignUpSubmitButtonDisabled = isRegistering || !!errors.email || !!errors.password || !formValues.email || !formValues.password;
 
   return (
     <Stack
@@ -176,24 +175,6 @@ export const SignUp = () => {
           </Typography>
           <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <FormControl>
-              <FormLabel htmlFor="name">Full name</FormLabel>
-              <TextField
-                autoFocus
-                autoComplete="name"
-                name="name"
-                required
-                fullWidth
-                id="name"
-                placeholder="Jon Snow"
-                error={!!errors.name}
-                helperText={errors.name || ""}
-                color={!!errors.name ? "error" : "primary"}
-                value={formValues.name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-              />
-            </FormControl>
-            <FormControl>
               <FormLabel htmlFor="email">Email</FormLabel>
               <TextField
                 required
@@ -230,8 +211,8 @@ export const SignUp = () => {
                 onBlur={handleBlur}
               />
             </FormControl>
-            <Button type="submit" fullWidth variant="contained" disabled={isRegistering}>
-              Sign up
+            <Button type="submit" fullWidth variant="contained" disabled={isSignUpSubmitButtonDisabled}>
+              {isRegistering ? "Signing up..." : "Sign up"}
             </Button>
           </Box>
           <Divider>

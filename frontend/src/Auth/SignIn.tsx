@@ -1,9 +1,9 @@
 import { Box, Button, FormControl, FormLabel, Link, Stack, styled, TextField, Typography } from "@mui/material";
 import MuiCard from "@mui/material/Card";
 import { ForgotPasswordDialog } from "./ForgotPasswordDialog";
-import { FocusEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FocusEvent, FormEvent, useState } from "react";
 import { validateEmail, validatePassword } from "../utils/validation";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "./useAuth";
 
 const Card = styled(MuiCard)(({ theme }) => ({
   display: "flex",
@@ -57,7 +57,7 @@ export const SignIn = () => {
     }
   };
 
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = event.target;
 
     setFormValues((prevValues) => ({
@@ -72,6 +72,8 @@ export const SignIn = () => {
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    if (event.target !== event.currentTarget) return; // SignIn and ForgotPasswordDialog share the same Form submission listener--we want to ignore the ForgotPasswordDialog event
+
     event.preventDefault();
 
     const newErrors: { [key: string]: string } = {};
@@ -87,7 +89,7 @@ export const SignIn = () => {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      login(formValues.email, formValues.password);
+      await login(formValues.email, formValues.password);
     }
   };
 
@@ -98,6 +100,8 @@ export const SignIn = () => {
   const handleForgotPasswordClose = () => {
     setForgotPasswordDialogIsOpen(false);
   };
+
+  const isSubmitDisabled = isLoggingIn || !!errors.email || !!errors.password || !formValues.email || !formValues.password;
 
   return (
     <Stack
@@ -144,7 +148,7 @@ export const SignIn = () => {
             <FormLabel htmlFor="email">Email</FormLabel>
             <TextField
               error={!!errors.email}
-              helperText={errors.name || ""}
+              helperText={errors.email || ""}
               id="email"
               type="email"
               name="email"
@@ -185,8 +189,8 @@ export const SignIn = () => {
             />
           </FormControl>
           <ForgotPasswordDialog open={forgotPasswordDialogIsOpen} handleClose={handleForgotPasswordClose} />
-          <Button type="submit" fullWidth variant="contained" disabled={isLoggingIn}>
-            Sign in
+          <Button type="submit" fullWidth variant="contained" disabled={isSubmitDisabled}>
+            {isLoggingIn ? "Signing in..." : "Sign in"}
           </Button>
           <Typography sx={{ textAlign: "center" }}>
             Don&apos;t have an account?{" "}

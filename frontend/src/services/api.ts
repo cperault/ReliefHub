@@ -2,7 +2,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 interface User {
   uid: string;
-  email: string;
+  email?: string;
 }
 
 interface AuthResponse {
@@ -39,7 +39,7 @@ export const api = createApi({
         method: "POST",
       }),
     }),
-    resetPassword: builder.mutation<AuthResponse, { email: string }>({
+    resetPassword: builder.mutation<void, { email: string }>({
       query: (credentials) => ({
         url: "auth/reset-password",
         method: "POST",

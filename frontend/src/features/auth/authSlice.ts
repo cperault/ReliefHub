@@ -25,6 +25,10 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addMatcher(api.endpoints.login.matchFulfilled, (state, { payload }) => {
+        state.isAuthenticated = true;
+        state.user = payload.user;
+      })
       .addMatcher(api.endpoints.validateSession.matchFulfilled, (state, { payload }) => {
         state.isAuthenticated = payload.valid;
         state.user = payload.user;
