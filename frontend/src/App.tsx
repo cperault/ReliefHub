@@ -1,10 +1,9 @@
 import { MenuOutlined, MapOutlined, LoginOutlined, LogoutOutlined, AccountCircleOutlined, MailOutlined, SettingsOutlined } from "@mui/icons-material";
 import { ReliefMap } from "./components/ReliefMap/ReliefMap";
-import { SignInOut } from "./components/SignInOut/SignInOut";
 import NotFound from "./components/UhOh/NotFound";
 import appIcon from "/reliefhub-icon.png";
-import { useAuth } from "./Auth/AuthContext";
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "./Auth/useAuth";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { About } from "./components/About/About";
 import { SignUp } from "./Auth/SignUp";
 import { useSelector } from "react-redux";
@@ -14,6 +13,7 @@ import { Inbox } from "./components/Inbox/Inbox";
 import { Settings } from "./components/Settings/Settings";
 import { AppBar, Box, Button, Drawer, IconButton, List, ListItem, ListItemText, Toolbar, Tooltip } from "@mui/material";
 import { useState } from "react";
+import { SignIn } from "./Auth/SignIn";
 
 export const App = () => {
   const isLoggedIn = useSelector((state: RootState) => state.auth.isAuthenticated);
@@ -35,10 +35,9 @@ export const App = () => {
 
   const handleSignInOutToolbarIconClick = () => {
     setDrawerOpen(false);
+
     if (isLoggedIn) {
       logout();
-    } else {
-      navigate("/sign-in");
     }
   };
 
@@ -46,10 +45,6 @@ export const App = () => {
     const tooltipKey = isLoggedIn ? "sign-out" : "sign-in";
     const tooltipTitle = isLoggedIn ? "Sign Out" : "Sign In";
     const buttonIcon = isLoggedIn ? <LogoutOutlined /> : <LoginOutlined />;
-
-    const { pathname } = useLocation();
-
-    if (pathname === "/sign-in-out") return null;
 
     return (
       <Tooltip key={tooltipKey} title={tooltipTitle}>
@@ -69,7 +64,7 @@ export const App = () => {
           </IconButton>
           <img src={appIcon} alt="icon of world with pinpoints" style={{ width: 35, height: 30, padding: 10 }} />
           <Box sx={{ display: "flex", flexGrow: 1 }}>
-            <Button color="inherit" onClick={() => navigate(isLoggedIn ? "/map" : "/sign-in-out")} style={{ fontSize: "1.25rem", textTransform: "none" }}>
+            <Button color="inherit" onClick={() => navigate(isLoggedIn ? "/map" : "/sign-in")} style={{ fontSize: "1.25rem", textTransform: "none" }}>
               ReliefHub
             </Button>
           </Box>
@@ -104,15 +99,14 @@ export const App = () => {
         </List>
       </Drawer>
       <Routes>
-        <Route path="/map" element={isLoggedIn ? <ReliefMap /> : <Navigate to="/sign-in-out" />} />
+        <Route path="/map" element={isLoggedIn ? <ReliefMap /> : <Navigate to="/sign-in" />} />
         <Route path="/about" element={<About />} />
-        <Route path="/inbox" element={isLoggedIn ? <Inbox /> : <Navigate to="/sign-in-out" />} />
-        <Route path="/profile" element={isLoggedIn ? <Profile /> : <Navigate to="/sign-in-out" />} />
-        <Route path="/settings" element={isLoggedIn ? <Settings /> : <Navigate to="/sign-in-out" />} />
-        <Route path="/sign-in" element={isLoggedIn ? <ReliefMap /> : <Navigate to="/sign-in-out" />} />
+        <Route path="/inbox" element={isLoggedIn ? <Inbox /> : <Navigate to="/sign-in" />} />
+        <Route path="/profile" element={isLoggedIn ? <Profile /> : <Navigate to="/sign-in" />} />
+        <Route path="/settings" element={isLoggedIn ? <Settings /> : <Navigate to="/sign-in" />} />
+        <Route path="/sign-in" element={isLoggedIn ? <ReliefMap /> : <SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
-        <Route path="/sign-in-out" element={<SignInOut />} />
-        <Route path="/" element={<Navigate to={isLoggedIn ? "/map" : "/sign-in-out"} />} />
+        <Route path="/" element={<Navigate to={isLoggedIn ? "/map" : "/sign-in"} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Box>

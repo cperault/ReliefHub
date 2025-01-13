@@ -1,4 +1,4 @@
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, Auth, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, Auth, signOut, User } from "firebase/auth";
 import { Auth as AdminAuth } from "firebase-admin/auth";
 import { Logger } from "../utils/Logger";
 import { FirebaseService } from "./FirebaseService";
@@ -9,11 +9,8 @@ export type AuthResult = {
     code: string;
     message: string;
   };
-  user?: {
-    uid: string;
-    email: string;
-  };
-};
+  user?: User;
+} | void;
 
 export type TokenVerificationResult = {
   uid: string;
@@ -39,16 +36,20 @@ export class AuthService {
     this.logger = Logger.getInstance();
   }
 
-  private async handleAuthOperation(operation: () => Promise<any>): Promise<AuthResult> {
+  private async handleAuthOperation(operationName: string, operation: () => Promise<any>): Promise<AuthResult> {
     try {
       const userCredential = await operation();
-      const token = await userCredential.user.getIdToken();
-      const { uid, email } = userCredential.user;
 
-      return {
-        token,
-        user: { uid, email },
-      };
+      if (operationName === "login" || operationName === "register") {
+        const token = await userCredential.user.getIdToken();
+
+        const user = userCredential.user;
+
+        return {
+          token,
+          user,
+        };
+      }
     } catch (error: unknown) {
       return this.handleAuthError(error);
     }
@@ -63,6 +64,7 @@ export class AuthService {
         },
       };
     }
+
     return {
       error: {
         code: "unknown_error",
@@ -82,15 +84,19 @@ export class AuthService {
   }
 
   public authenticateUser(email: string, password: string): Promise<AuthResult> {
-    return this.handleAuthOperation(() => signInWithEmailAndPassword(this.auth, email, password));
+    return this.handleAuthOperation("login", () => signInWithEmailAndPassword(this.auth, email, password));
+  }
+
+  public sendVerificationEmail(user: User): Promise<AuthResult> {
+    return this.handleAuthOperation("verifyEmail", () => sendEmailVerification(user));
   }
 
   public registerUser(email: string, password: string): Promise<AuthResult> {
-    return this.handleAuthOperation(() => createUserWithEmailAndPassword(this.auth, email, password));
+    return this.handleAuthOperation("register", () => createUserWithEmailAndPassword(this.auth, email, password));
   }
 
   public resetPassword(email: string): Promise<AuthResult> {
-    return this.handleAuthOperation(() => sendPasswordResetEmail(this.auth, email));
+    return this.handleAuthOperation("reset", () => sendPasswordResetEmail(this.auth, email));
   }
 
   public async logout(): Promise<void> {
