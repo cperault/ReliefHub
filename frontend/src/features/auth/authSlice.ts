@@ -1,12 +1,9 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { api } from "../../services/api";
+import { api, AuthUser } from "../../services/api";
 
 interface AuthState {
   isAuthenticated: boolean;
-  user?: {
-    uid: string;
-    email?: string;
-  };
+  user: AuthUser | undefined;
 }
 
 const initialState: AuthState = {
@@ -26,7 +23,7 @@ const authSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addMatcher(api.endpoints.login.matchFulfilled, (state, { payload }) => {
-        state.isAuthenticated = true;
+        state.isAuthenticated = payload.user.emailVerified;
         state.user = payload.user;
       })
       .addMatcher(api.endpoints.validateSession.matchFulfilled, (state, { payload }) => {

@@ -2,43 +2,33 @@ import request from "supertest";
 import createApp, { AppDependencies } from "../../src/app";
 import { AuthService } from "../../src/services/AuthService";
 import { FirebaseService } from "../../src/services/FirebaseService";
-import { UserService } from "../../src/services/UserService";
 
-jest.mock("../../src/services/AuthService");
 jest.mock("../../src/services/FirebaseService");
-jest.mock("../../src/services/UserService");
+jest.mock("../../src/services/AuthService");
 
 describe("AuthController", () => {
+  let app: ReturnType<typeof createApp>;
   let firebaseService: jest.Mocked<FirebaseService>;
   let authService: jest.Mocked<AuthService>;
-  let userService: jest.Mocked<UserService>;
-  let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
-    process.env.JWT_SECRET_KEY = "test-secret-key";
-
     authService = {
-      authenticateUser: jest.fn().mockResolvedValue({
-        token: "mockToken",
-      }),
-      registerUser: jest.fn().mockResolvedValue({
-        user: { id: "mockUserId", email: "test@example.com" },
-      }),
-      verifyToken: jest.fn().mockResolvedValue({ uid: "test-uid", email: "test@example.com" }),
-      createSessionCookie: jest.fn().mockResolvedValue("mock-session-cookie"),
+      authenticateUser: jest.fn(),
+      registerUser: jest.fn(),
+      verifyToken: jest.fn(),
+      createSessionCookie: jest.fn(),
+      sendVerificationEmail: jest.fn(),
     } as unknown as jest.Mocked<AuthService>;
 
     firebaseService = {
-      getFirebaseAuth: jest.fn().mockReturnValue({}),
+      getFirebaseAuth: jest.fn(),
+      getFirestore: jest.fn(),
     } as unknown as jest.Mocked<FirebaseService>;
 
-    userService = {} as jest.Mocked<UserService>;
+    (AuthService as jest.Mock) = jest.fn().mockImplementation(() => authService);
+    (FirebaseService as jest.Mock) = jest.fn().mockImplementation(() => firebaseService);
 
     const appDependencies: AppDependencies = { firebaseService };
-
-    (AuthService as jest.Mock) = jest.fn().mockImplementation(() => authService);
-    (UserService as jest.Mock) = jest.fn().mockImplementation(() => userService);
-    (FirebaseService as jest.Mock) = jest.fn().mockImplementation(() => firebaseService);
     app = createApp(appDependencies);
   });
 
@@ -47,9 +37,30 @@ describe("AuthController", () => {
   });
 
   describe("POST /api/auth/login", () => {
-    it("should return 200 and set a session cookie on successful login", async () => {
+    it("should return 200 and set a session cookie on successful login with a verified email", async () => {
       const mockToken = "mock-token";
-      authService.authenticateUser.mockResolvedValue({ token: mockToken });
+      authService.authenticateUser.mockResolvedValue({
+        token: mockToken,
+        user: {
+          uid: "test-uid",
+          emailVerified: true,
+          isAnonymous: false,
+          metadata: {},
+          providerData: [],
+          refreshToken: "",
+          tenantId: null,
+          delete: jest.fn(),
+          getIdToken: jest.fn(),
+          getIdTokenResult: jest.fn(),
+          reload: jest.fn(),
+          toJSON: jest.fn(),
+          displayName: null,
+          email: "test@example.com",
+          phoneNumber: null,
+          photoURL: null,
+          providerId: "",
+        },
+      });
       authService.verifyToken.mockResolvedValue({ uid: "test-uid", email: "test@example.com" });
 
       const response = await request(app).post("/api/auth/login").send({ email: "user@example.com", password: "password123" });
@@ -64,6 +75,40 @@ describe("AuthController", () => {
       expect(cookie).toContain("HttpOnly");
       expect(cookie).toContain("SameSite=Strict");
       expect(cookie).toContain("Max-Age=432000");
+    });
+
+    it("should return 403 for a login with an unverified email", async () => {
+      const mockToken = "mock-token";
+      authService.authenticateUser.mockResolvedValue({
+        token: mockToken,
+        user: {
+          uid: "test-uid",
+          emailVerified: false,
+          isAnonymous: false,
+          metadata: {},
+          providerData: [],
+          refreshToken: "",
+          tenantId: null,
+          delete: jest.fn(),
+          getIdToken: jest.fn(),
+          getIdTokenResult: jest.fn(),
+          reload: jest.fn(),
+          toJSON: jest.fn(),
+          displayName: null,
+          email: "test@example.com",
+          phoneNumber: null,
+          photoURL: null,
+          providerId: "",
+        },
+      });
+      authService.verifyToken.mockResolvedValue({ uid: "test-uid", email: "test@example.com" });
+
+      const response = await request(app).post("/api/auth/login").send({ email: "test@example.com", password: "password123" });
+
+      expect(authService.authenticateUser).toHaveBeenCalledWith("test@example.com", "password123");
+      expect(authService.verifyToken).toHaveBeenCalledWith(mockToken);
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe("Email not verified. A new verification email has been sent.");
     });
 
     it("should return 400 when login fails due to invalid credentials", async () => {
@@ -109,7 +154,7 @@ describe("AuthController", () => {
       expect(authService.registerUser).toHaveBeenCalledWith("newuser@example.com", "password123");
       expect(authService.verifyToken).toHaveBeenCalledWith(mockToken);
       expect(response.status).toBe(201);
-      expect(response.body.message).toBe("Registration successful");
+      expect(response.body.message).toBe("Registration successful and a verification email has been sent.");
     });
 
     it("should return 400 when registration fails", async () => {

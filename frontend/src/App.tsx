@@ -7,7 +7,7 @@ import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { About } from "./components/About/About";
 import { SignUp } from "./Auth/SignUp";
 import { useSelector } from "react-redux";
-import { RootState } from "./app/store";
+import { RootState } from "./store";
 import { Profile } from "./components/Profile/Profile";
 import { Inbox } from "./components/Inbox/Inbox";
 import { Settings } from "./components/Settings/Settings";
@@ -33,11 +33,13 @@ export const App = () => {
     navigate(path);
   };
 
-  const handleSignInOutToolbarIconClick = () => {
+  const handleSignInOutToolbarIconClick = async (): Promise<void> => {
     setDrawerOpen(false);
 
     if (isLoggedIn) {
-      logout();
+      await logout();
+    } else {
+      navigate("/sign-in");
     }
   };
 
@@ -48,7 +50,7 @@ export const App = () => {
 
     return (
       <Tooltip key={tooltipKey} title={tooltipTitle}>
-        <Button color="inherit" onClick={handleSignInOutToolbarIconClick}>
+        <Button color="inherit" onClick={async () => handleSignInOutToolbarIconClick()}>
           {buttonIcon}
         </Button>
       </Tooltip>
@@ -93,7 +95,7 @@ export const App = () => {
                 <ListItemText primary={item.label} />
               </ListItem>
             ))}
-          <ListItem onClick={handleSignInOutToolbarIconClick}>
+          <ListItem onClick={async () => handleSignInOutToolbarIconClick()}>
             <ListItemText primary={isLoggedIn ? "Sign Out" : "Sign In"} />
           </ListItem>
         </List>
