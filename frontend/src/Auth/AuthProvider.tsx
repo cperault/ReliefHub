@@ -1,18 +1,20 @@
 import { ReactNode, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { useLoginMutation, useLogoutMutation, useRegisterMutation, useResetPasswordMutation, useValidateSessionQuery } from "../services/api";
+import { AuthUser, useLoginMutation, useLogoutMutation, useRegisterMutation, useResetPasswordMutation, useValidateSessionQuery } from "../services/api";
 import { setAuthState } from "../features/auth/authSlice";
 import { toast } from "react-toastify";
 import { AuthContext, AuthContextType } from "./AuthContext";
-import { AppDispatch, RootState } from "../app/store";
+import { AppDispatch, RootState } from "../store";
 
 type FirebaseAuthError = {
   status?: number;
   data?: {
+    user: AuthUser;
+    message: string;
     error?: {
-      code?: string;
-      message?: string;
+      code: string;
+      message: string;
     };
   };
 };
@@ -45,14 +47,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const getErrorMessage = (error: unknown): string => {
     const firebaseError = error as FirebaseAuthError;
     const errorCode = firebaseError?.data?.error?.code ?? "";
+
     return errorMessages[errorCode] || "An unknown error occurred. Please try again.";
   };
 
   const handleLogin = async (email: string, password: string): Promise<void> => {
     try {
-      const { user } = await login({ email, password }).unwrap();
-      dispatch(setAuthState({ isAuthenticated: true, user }));
+      await login({ email, password }).unwrap();
     } catch (error) {
+      // catch email not verified
+      if ((error as FirebaseAuthError)?.status === 403) {
+        const rejectedResponse = (error as any)?.data;
+        toast.error(rejectedResponse?.message);
+
+        return;
+      }
+
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage);
     }
@@ -72,7 +82,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const handleLogout = async (): Promise<void> => {
     try {
       await logout().unwrap();
-      dispatch(setAuthState({ isAuthenticated: false, user: undefined }));
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       toast.error(errorMessage);
@@ -82,7 +91,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const handleResetPassword = async (email: string): Promise<void> => {
     try {
       await resetPassword({ email }).unwrap();
-      dispatch(setAuthState({ isAuthenticated: false, user: undefined }));
       toast.success("Password reset email sent!");
     } catch (error) {
       const errorMessage = getErrorMessage(error);

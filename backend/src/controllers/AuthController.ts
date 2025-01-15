@@ -13,39 +13,62 @@ export class AuthController {
   };
 
   private handleAuthResponse = async (res: Response, result: AuthResult, successStatusCode: number): Promise<void> => {
-    if (result?.token) {
-      const tokenVerificationResult: TokenVerificationResult | null = await this.authService.verifyToken(result.token);
+    // login and register both return a token and user object; nothing else should be calling this handler
+    if (!result?.token) {
+      res.status(400).json({ error: result?.error || "Authentication failed" });
+      return;
+    }
 
-      if (tokenVerificationResult) {
-        const isRegistration = successStatusCode === 201;
+    const tokenVerificationResult: TokenVerificationResult | null = await this.authService.verifyToken(result.token);
 
-        try {
-          if (!isRegistration) {
-            const sessionCookie = await this.authService.createSessionCookie(result.token);
+    if (!tokenVerificationResult) {
+      res.status(400).json({ error: "Invalid token" });
+      return;
+    }
 
-            const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days, equivalent to Max-Age=432000
-            res.cookie("sessionToken", sessionCookie, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === "prod",
-              sameSite: "strict",
-              maxAge: expiresIn,
-            });
-          }
+    const isRegistration = successStatusCode === 201;
 
-          res.status(successStatusCode).json({ user: result.user, message: `${isRegistration ? `Registration` : `Login`} successful` });
+    try {
+      // handle unverified email cases
+      if (!result.user?.emailVerified) {
+        res.clearCookie("sessionToken", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "prod",
+          sameSite: "strict",
+        });
 
-          // if user just registered, send verification email
-          if (isRegistration && result.user) {
-            await this.authService.sendVerificationEmail(result.user);
-          }
-        } catch (error) {
-          res.status(500).json({ error: "Error creating session cookie" });
+        const statusCode = isRegistration ? successStatusCode : 403;
+        const message = isRegistration
+          ? "Registration successful and a verification email has been sent."
+          : "Email not verified. A new verification email has been sent.";
+
+        if (result.user) {
+          await this.authService.sendVerificationEmail(result.user);
         }
-      } else {
-        res.status(400).json({ error: "Invalid token" });
+
+        res.status(statusCode).json({ user: result.user, message });
+        return;
       }
-    } else {
-      res.status(400).json({ error: result?.error });
+
+      // create a session cookie for verified users logging in
+      if (!isRegistration) {
+        const sessionCookie = await this.authService.createSessionCookie(result.token);
+        const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+
+        res.cookie("sessionToken", sessionCookie, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "prod",
+          sameSite: "strict",
+          maxAge: expiresIn,
+        });
+      }
+
+      res.status(successStatusCode).json({
+        user: result.user,
+        message: `${isRegistration ? "Registration" : "Login"} successful`,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error while processing authentication" });
     }
   };
 

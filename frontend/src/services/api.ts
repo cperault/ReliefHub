@@ -1,18 +1,20 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-interface User {
+export interface AuthUser {
   uid: string;
-  email?: string;
+  createdAt: string;
+  email: string;
+  emailVerified: boolean;
 }
 
 interface AuthResponse {
-  user: User;
+  user: AuthUser;
   message: string;
 }
 
 interface ValidateSessionResult {
   valid: boolean;
-  user: User;
+  user: AuthUser;
 }
 
 export const api = createApi({
@@ -20,17 +22,17 @@ export const api = createApi({
   baseQuery: fetchBaseQuery({ baseUrl: "https://localhost:4000/api", credentials: "include" }),
   endpoints: (builder) => ({
     login: builder.mutation<AuthResponse, { email: string; password: string }>({
-      query: (credentials) => ({
+      query: (body) => ({
         url: "auth/login",
         method: "POST",
-        body: credentials,
+        body: body,
       }),
     }),
     register: builder.mutation<AuthResponse, { email: string; password: string }>({
-      query: (credentials) => ({
+      query: (body) => ({
         url: "auth/register",
         method: "POST",
-        body: credentials,
+        body: body,
       }),
     }),
     logout: builder.mutation<void, void>({
@@ -40,10 +42,10 @@ export const api = createApi({
       }),
     }),
     resetPassword: builder.mutation<void, { email: string }>({
-      query: (credentials) => ({
+      query: (body) => ({
         url: "auth/reset-password",
         method: "POST",
-        body: credentials,
+        body: body,
       }),
     }),
     validateSession: builder.query<ValidateSessionResult, void>({

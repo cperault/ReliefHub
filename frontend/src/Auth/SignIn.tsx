@@ -1,26 +1,10 @@
-import { Box, Button, FormControl, FormLabel, Link, Stack, styled, TextField, Typography } from "@mui/material";
-import MuiCard from "@mui/material/Card";
+import { Box, Button, FormControl, FormLabel, Link, Stack, TextField, Typography } from "@mui/material";
 import { ForgotPasswordDialog } from "./ForgotPasswordDialog";
 import { ChangeEvent, FocusEvent, FormEvent, useState } from "react";
 import { validateEmail, validatePassword } from "../utils/validation";
 import { useAuth } from "./useAuth";
-
-const Card = styled(MuiCard)(({ theme }) => ({
-  display: "flex",
-  flexDirection: "column",
-  alignSelf: "center",
-  width: "100%",
-  padding: theme.spacing(4),
-  gap: theme.spacing(2),
-  margin: "auto",
-  boxShadow: "hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px",
-  [theme.breakpoints.up("xs")]: {
-    width: "450px",
-  },
-  ...theme.applyStyles("dark", {
-    boxShadow: "hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px",
-  }),
-}));
+import { StyledCard } from "../components/Shared/StyledCard";
+import { getStackStyles } from "../components/Shared/getStackStyles";
 
 export const SignIn = () => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -29,6 +13,7 @@ export const SignIn = () => {
     password: "",
   });
   const [forgotPasswordDialogIsOpen, setForgotPasswordDialogIsOpen] = useState(false);
+
   const { login, isLoggingIn } = useAuth();
 
   const validateField = (name: string, value: string): string | null => {
@@ -114,23 +99,10 @@ export const SignIn = () => {
           marginTop: "max(20px - var(--template-frame-height, 0px), 0px)",
           minHeight: "100%",
         },
-        (theme) => ({
-          "&::before": {
-            content: '""',
-            display: "block",
-            position: "absolute",
-            zIndex: -1,
-            inset: 0,
-            backgroundImage: "radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))",
-            backgroundRepeat: "no-repeat",
-            ...theme.applyStyles("dark", {
-              backgroundImage: "radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))",
-            }),
-          },
-        }),
+        (theme) => getStackStyles(theme),
       ]}
     >
-      <Card variant="outlined">
+      <StyledCard variant="outlined">
         <Typography component="h1" variant="h4" sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}>
           Sign in
         </Typography>
@@ -201,7 +173,7 @@ export const SignIn = () => {
             </span>
           </Typography>
         </Box>
-      </Card>
+      </StyledCard>
     </Stack>
   );
 };
