@@ -1,25 +1,38 @@
-import { MenuOutlined, MapOutlined, LoginOutlined, LogoutOutlined, AccountCircleOutlined, MailOutlined, SettingsOutlined } from "@mui/icons-material";
+import {
+  MapOutlined,
+  LoginOutlined,
+  LogoutOutlined,
+  AccountCircleOutlined,
+  MailOutlined,
+  SettingsOutlined,
+} from "@mui/icons-material";
 import { ReliefMap } from "./components/ReliefMap/ReliefMap";
 import NotFound from "./components/UhOh/NotFound";
 import appIcon from "/reliefhub-icon.png";
-import { useAuth } from "./Auth/useAuth";
+import { useAuth } from "./hooks/useAuth";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { About } from "./components/About/About";
-import { SignUp } from "./Auth/SignUp";
+import { SignUp } from "./components/SignUp/SignUp";
 import { useSelector } from "react-redux";
-import { RootState } from "./store";
+import { RootState } from "./state/store";
 import { Profile } from "./components/Profile/Profile";
 import { Inbox } from "./components/Inbox/Inbox";
 import { Settings } from "./components/Settings/Settings";
-import { AppBar, Box, Button, Drawer, IconButton, List, ListItem, ListItemText, Toolbar, Tooltip } from "@mui/material";
-import { useState } from "react";
-import { SignIn } from "./Auth/SignIn";
+import { AppBar, Box, Button, IconButton, Toolbar, Tooltip } from "@mui/material";
+import { SignIn } from "./components/SignIn/SignIn";
+import { ProfileSetup } from "./components/Profile/ProfileSetup";
+import { UserProfileProvider } from "./providers/UserProfileProvider";
 
 export const App = () => {
-  const isLoggedIn = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const user = useSelector((state: RootState) => state.user);
+  console.log("user", user);
+  const userHasProfileSetUp = user.hasProfile;
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  console.log("isAuthenticated", isAuthenticated);
+  console.log("userHasProfileSetUp", userHasProfileSetUp);
 
   const toolbarIcons = [
     { icon: <AccountCircleOutlined />, label: "Profile", path: "/profile" },
@@ -29,14 +42,16 @@ export const App = () => {
   ];
 
   const handleToolbarIconClick = (path: string) => {
-    setDrawerOpen(false);
+    if (!userHasProfileSetUp) {
+      navigate("/profile-setup");
+      return;
+    }
+
     navigate(path);
   };
 
   const handleSignInOutToolbarIconClick = async (): Promise<void> => {
-    setDrawerOpen(false);
-
-    if (isLoggedIn) {
+    if (isAuthenticated) {
       await logout();
     } else {
       navigate("/sign-in");
@@ -44,9 +59,9 @@ export const App = () => {
   };
 
   const SignInOutButton = () => {
-    const tooltipKey = isLoggedIn ? "sign-out" : "sign-in";
-    const tooltipTitle = isLoggedIn ? "Sign Out" : "Sign In";
-    const buttonIcon = isLoggedIn ? <LogoutOutlined /> : <LoginOutlined />;
+    const tooltipKey = isAuthenticated ? "sign-out" : "sign-in";
+    const tooltipTitle = isAuthenticated ? "Sign Out" : "Sign In";
+    const buttonIcon = isAuthenticated ? <LogoutOutlined /> : <LoginOutlined />;
 
     return (
       <Tooltip key={tooltipKey} title={tooltipTitle}>
@@ -61,16 +76,17 @@ export const App = () => {
     <Box sx={{ margin: -1 }}>
       <AppBar position="relative">
         <Toolbar>
-          <IconButton color="inherit" aria-label="menu" onClick={() => setDrawerOpen(true)} sx={{ display: { xs: "flex", sm: "none" } }}>
-            <MenuOutlined />
-          </IconButton>
           <img src={appIcon} alt="icon of world with pinpoints" style={{ width: 35, height: 30, padding: 10 }} />
           <Box sx={{ display: "flex", flexGrow: 1 }}>
-            <Button color="inherit" onClick={() => navigate(isLoggedIn ? "/map" : "/sign-in")} style={{ fontSize: "1.25rem", textTransform: "none" }}>
+            <Button
+              color="inherit"
+              onClick={() => navigate(isAuthenticated ? "/map" : "/sign-in")}
+              style={{ fontSize: "1.25rem", textTransform: "none" }}
+            >
               ReliefHub
             </Button>
           </Box>
-          {isLoggedIn && (
+          {isAuthenticated && (
             <>
               {toolbarIcons.map((item) => (
                 <Tooltip key={item.label} title={item.label}>
@@ -83,34 +99,112 @@ export const App = () => {
               <SignInOutButton />
             </>
           )}
-          {!isLoggedIn && <SignInOutButton />}
+          {!isAuthenticated && <SignInOutButton />}
         </Toolbar>
       </AppBar>
+      <UserProfileProvider>
+        <Routes>
+          {/* Root redirect */}
+          <Route path="/" element={<Navigate to={isAuthenticated ? "/map" : "/sign-in"} />} />
 
-      <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <List>
-          {isLoggedIn &&
-            toolbarIcons.map((item) => (
-              <ListItem key={item.label} onClick={() => handleToolbarIconClick(item.path)}>
-                <ListItemText primary={item.label} />
-              </ListItem>
-            ))}
-          <ListItem onClick={async () => handleSignInOutToolbarIconClick()}>
-            <ListItemText primary={isLoggedIn ? "Sign Out" : "Sign In"} />
-          </ListItem>
-        </List>
-      </Drawer>
-      <Routes>
-        <Route path="/map" element={isLoggedIn ? <ReliefMap /> : <Navigate to="/sign-in" />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/inbox" element={isLoggedIn ? <Inbox /> : <Navigate to="/sign-in" />} />
-        <Route path="/profile" element={isLoggedIn ? <Profile /> : <Navigate to="/sign-in" />} />
-        <Route path="/settings" element={isLoggedIn ? <Settings /> : <Navigate to="/sign-in" />} />
-        <Route path="/sign-in" element={isLoggedIn ? <ReliefMap /> : <SignIn />} />
-        <Route path="/sign-up" element={<SignUp />} />
-        <Route path="/" element={<Navigate to={isLoggedIn ? "/map" : "/sign-in"} />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          {/* Authentication routes - redirect if already authenticated */}
+          <Route
+            path="/sign-in"
+            element={
+              isAuthenticated ? (
+                userHasProfileSetUp ? (
+                  <Navigate to="/map" replace />
+                ) : (
+                  <Navigate to="/profile-setup" replace />
+                )
+              ) : (
+                <SignIn />
+              )
+            }
+          />
+          <Route path="/sign-up" element={isAuthenticated ? <Navigate to="/profile" replace /> : <SignUp />} />
+
+          {/* Profile setup - requires auth, redirects if already completed */}
+          <Route
+            path="/profile-setup"
+            element={
+              isAuthenticated ? (
+                userHasProfileSetUp ? (
+                  <Navigate to="/map" replace />
+                ) : (
+                  <ProfileSetup />
+                )
+              ) : (
+                <Navigate to="/sign-in" replace />
+              )
+            }
+          />
+
+          {/* Protected routes - require auth and completed profile */}
+          <Route
+            path="/profile"
+            element={
+              isAuthenticated ? (
+                userHasProfileSetUp ? (
+                  <Profile />
+                ) : (
+                  <Navigate to="/profile-setup" replace />
+                )
+              ) : (
+                <Navigate to="/sign-in" replace />
+              )
+            }
+          />
+          <Route
+            path="/map"
+            element={
+              isAuthenticated ? (
+                userHasProfileSetUp ? (
+                  <ReliefMap />
+                ) : (
+                  <Navigate to="/profile-setup" replace />
+                )
+              ) : (
+                <Navigate to="/sign-in" />
+              )
+            }
+          />
+          <Route
+            path="/inbox"
+            element={
+              isAuthenticated ? (
+                userHasProfileSetUp ? (
+                  <Inbox />
+                ) : (
+                  <Navigate to="/profile-setup" replace />
+                )
+              ) : (
+                <Navigate to="/sign-in" />
+              )
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              isAuthenticated ? (
+                userHasProfileSetUp ? (
+                  <Settings />
+                ) : (
+                  <Navigate to="/profile-setup" replace />
+                )
+              ) : (
+                <Navigate to="/sign-in" />
+              )
+            }
+          />
+
+          {/* Public routes - accessible to all */}
+          <Route path="/about" element={<About />} />
+
+          {/* 404 route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </UserProfileProvider>
     </Box>
   );
 };

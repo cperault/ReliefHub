@@ -94,7 +94,11 @@ describe("AuthService", () => {
       const result = await authService.registerUser("test@example.com", "password123");
 
       expect(result?.token).toBe("mockToken");
-      expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(expect.any(Object), "test@example.com", "password123");
+      expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(
+        expect.any(Object),
+        "test@example.com",
+        "password123"
+      );
     });
 
     it("should return an error if registration fails", async () => {

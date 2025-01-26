@@ -4,10 +4,10 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import { validateEmail } from "../utils/validation";
-import { useAuth } from "./useAuth";
+import { useAuth } from "../../hooks/useAuth";
 import { ChangeEvent, FocusEvent, FormEvent, useState } from "react";
 import { TextField } from "@mui/material";
+import { useFormValidation } from "../../hooks/useFormValidation";
 
 interface ForgotPasswordDialogProps {
   open: boolean;
@@ -20,6 +20,7 @@ export const ForgotPasswordDialog = ({ open, handleClose }: ForgotPasswordDialog
     email: "",
   });
   const { resetPassword, isResettingPassword } = useAuth();
+  const { validateField } = useFormValidation();
 
   const resetForm = (): void => {
     setFormValues({
@@ -27,15 +28,6 @@ export const ForgotPasswordDialog = ({ open, handleClose }: ForgotPasswordDialog
     });
 
     setErrors({});
-  };
-
-  const validateField = (name: string, value: string): string | null => {
-    switch (name) {
-      case "email":
-        return validateEmail(value) ? null : "Please enter a valid email address";
-      default:
-        return null;
-    }
   };
 
   const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
@@ -97,13 +89,24 @@ export const ForgotPasswordDialog = ({ open, handleClose }: ForgotPasswordDialog
       maxWidth="xs"
       PaperProps={{
         component: "form",
-        onSubmit: handleSubmit,
+        onSubmit: async (e: FormEvent<HTMLFormElement>) => await handleSubmit(e),
         sx: { backgroundImage: "none" },
       }}
     >
       <DialogTitle>Reset password</DialogTitle>
-      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
-        <DialogContentText>Enter the email address associated with your account to receive an email with a link to reset your password.</DialogContentText>
+      <DialogContent
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+          width: "100%",
+          overflowX: "hidden",
+          boxSizing: "border-box",
+        }}
+      >
+        <DialogContentText>
+          Enter the email address associated with your account to receive an email with a link to reset your password.
+        </DialogContentText>
         <TextField
           autoFocus
           required

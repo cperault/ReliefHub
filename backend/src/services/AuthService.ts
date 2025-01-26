@@ -1,4 +1,12 @@
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, Auth, signOut, User } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  Auth,
+  signOut,
+  User,
+} from "firebase/auth";
 import { Auth as AdminAuth } from "firebase-admin/auth";
 import { Logger } from "../utils/Logger";
 import { FirebaseService } from "./FirebaseService";

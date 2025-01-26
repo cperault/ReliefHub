@@ -10,8 +10,9 @@ jest.mock("../../src/controllers/AuthController", () => {
       login: (req: Request, res: Response) => res.status(200).json({ message: "Login successful" }),
       register: (req: Request, res: Response) => res.status(201).json({ message: "Registration successful" }),
       logout: (req: Request, res: Response) => res.status(204).end(),
-      resetPassword: (req: Request, res: Response) => res.status(202).json({ message: "Password reset email sent" }),
-      validateSession: (req: Request, res: Response) => res.status(200).json({ valid: true, user: { uid: "test-uid", email: "email@example.com" } }),
+      resetPassword: (req: Request, res: Response) => res.status(202).end(),
+      validateSession: (req: Request, res: Response) =>
+        res.status(200).json({ valid: true, user: { uid: "test-uid", email: "email@example.com" } }),
     })),
   };
 });
@@ -29,7 +30,8 @@ jest.mock("../../src/controllers/UserController", () => {
             { id: "test-uid-4", email: "fake-email-4@example.com" },
           ],
         }),
-      getUserById: (req: Request, res: Response) => res.status(200).json({ userData: { id: "test-uid", email: "fake-email-1@example.com" } }),
+      getUserById: (req: Request, res: Response) =>
+        res.status(200).json({ userData: { id: "test-uid", email: "fake-email-1@example.com" } }),
       updateUser: (req: Request, res: Response) => res.status(200).json({ message: "User updated successfully" }),
       deleteUser: (req: Request, res: Response) => res.status(200).json({ message: "User deleted successfully" }),
     })),
@@ -89,7 +91,7 @@ describe("APIRouter", () => {
     it("should return 202 and a success message for password reset", async () => {
       const response = await request(app).post("/api/auth/reset-password").send();
       expect(response.status).toBe(202);
-      expect(response.body).toEqual({ message: "Password reset email sent" });
+      expect(response.body).toEqual({});
     });
 
     it("should return 200 and a success message for session validation", async () => {
