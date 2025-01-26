@@ -1,11 +1,18 @@
 import { ReactNode, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { AuthUser, useLoginMutation, useLogoutMutation, useRegisterMutation, useResetPasswordMutation, useValidateSessionQuery } from "../services/api";
-import { setAuthState } from "../features/auth/authSlice";
+import {
+  AuthUser,
+  useLoginMutation,
+  useLogoutMutation,
+  useRegisterMutation,
+  useResetPasswordMutation,
+  useValidateSessionQuery,
+} from "../services/api";
+import { setAuthState } from "../state/auth/authSlice";
 import { toast } from "react-toastify";
-import { AuthContext, AuthContextType } from "./AuthContext";
-import { AppDispatch, RootState } from "../store";
+import { AuthContext, AuthContextType } from "../context/AuthContext";
+import { AppDispatch, RootState } from "../state/store";
 
 type FirebaseAuthError = {
   status?: number;
@@ -53,7 +60,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const handleLogin = async (email: string, password: string): Promise<void> => {
     try {
-      await login({ email, password }).unwrap();
+      const result = await login({ email, password }).unwrap();
+
+      if (result.user.hasProfile) {
+        navigate("/map");
+      }
     } catch (error) {
       // catch email not verified
       if ((error as FirebaseAuthError)?.status === 403) {

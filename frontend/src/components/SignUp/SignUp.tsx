@@ -1,10 +1,10 @@
-import { Box, Button, Divider, FormControl, FormLabel, Link, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Divider, Link, Stack, TextField, Typography } from "@mui/material";
 import { HandshakeOutlined, LocalShippingOutlined } from "@mui/icons-material";
 import { ChangeEvent, FocusEvent, FormEvent, useState } from "react";
-import { validateEmail, validatePassword } from "../utils/validation";
-import { useAuth } from "./useAuth";
-import { StyledCard } from "../components/Shared/StyledCard";
-import { getStackStyles } from "../components/Shared/getStackStyles";
+import { useAuth } from "../../hooks/useAuth";
+import { StyledCard } from "../../components/Shared/StyledCard";
+import { StackContainer } from "../../components/Shared/StackContainer";
+import { useFormValidation } from "../../hooks/useFormValidation";
 
 const signUpContentItems = [
   {
@@ -16,7 +16,8 @@ const signUpContentItems = [
   {
     icon: <LocalShippingOutlined sx={{ color: "text.primary" }} fontSize="large" />,
     title: "Relief, On the Move.",
-    description: "Arrange to have resources delivered or picked up. Coordinate with volunteers to get the help you need, when you need it.",
+    description:
+      "Arrange to have resources delivered or picked up. Coordinate with volunteers to get the help you need, when you need it.",
   },
 ];
 
@@ -26,7 +27,7 @@ const SignUpSideContent = () => {
       sx={{
         flexDirection: "column",
         alignSelf: "center",
-        gap: 4,
+        gap: 2,
         maxWidth: 350,
       }}
     >
@@ -54,17 +55,7 @@ export const SignUp = () => {
     password: "",
   });
   const { register, isRegistering } = useAuth();
-
-  const validateField = (name: string, value: string): string | null => {
-    switch (name) {
-      case "email":
-        return validateEmail(value) ? null : "Please enter a valid email address";
-      case "password":
-        return validatePassword(value) ? null : "Password must be between 8 and 128 characters";
-      default:
-        return null;
-    }
-  };
+  const { validateField } = useFormValidation();
 
   const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -115,73 +106,64 @@ export const SignUp = () => {
     }
   };
 
-  const isSignUpSubmitButtonDisabled = isRegistering || !!errors.email || !!errors.password || !formValues.email || !formValues.password;
+  const isSignUpSubmitButtonDisabled =
+    isRegistering || !!errors.email || !!errors.password || !formValues.email || !formValues.password;
 
   return (
-    <Stack
-      direction={{ xs: "column-reverse", md: "row" }}
-      sx={[
-        {
-          justifyContent: "center",
-          gap: { xs: 6, sm: 12 },
-          p: 2,
-          mx: "auto",
-        },
-        (theme) => getStackStyles(theme),
-      ]}
-    >
+    <StackContainer direction={{ xs: "column-reverse", md: "row" }}>
       <Stack
         direction={{ xs: "column-reverse", md: "row" }}
         sx={{
-          justifyContent: "center",
-          gap: { xs: 6, sm: 12 },
-          p: { xs: 2, sm: 4 },
+          gap: 4,
           m: "auto",
         }}
       >
         <SignUpSideContent />
-        <StyledCard>
+        <StyledCard variant="outlined">
           <Typography component="h1" variant="h4" sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}>
             Sign up
           </Typography>
-          <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <FormControl>
-              <FormLabel htmlFor="email">Email</FormLabel>
-              <TextField
-                required
-                fullWidth
-                id="email"
-                placeholder="your@email.com"
-                name="email"
-                autoComplete="email"
-                variant="outlined"
-                error={!!errors.email}
-                helperText={errors.email || ""}
-                color={!!errors.email ? "error" : "primary"}
-                value={formValues.email}
-                onChange={handleChange}
-                onBlur={handleBlur}
-              />
-            </FormControl>
-            <FormControl>
-              <FormLabel htmlFor="password">Password</FormLabel>
-              <TextField
-                required
-                fullWidth
-                name="password"
-                placeholder="••••••"
-                type="password"
-                id="password"
-                autoComplete="new-password"
-                variant="outlined"
-                error={!!errors.password}
-                helperText={errors.password || ""}
-                color={!!errors.password ? "error" : "primary"}
-                value={formValues.password}
-                onChange={handleChange}
-                onBlur={handleBlur}
-              />
-            </FormControl>
+          <Box
+            component="form"
+            onSubmit={async (e: FormEvent<HTMLFormElement>) => await handleSubmit(e)}
+            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+            autoComplete="on"
+          >
+            <TextField
+              autoFocus
+              required
+              fullWidth
+              id="email"
+              type="email"
+              name="email"
+              label="Email"
+              placeholder="your@email.com"
+              autoComplete="username"
+              variant="outlined"
+              error={!!errors.email}
+              helperText={errors.email || ""}
+              color={!!errors.email ? "error" : "primary"}
+              value={formValues.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+            />
+            <TextField
+              required
+              fullWidth
+              name="password"
+              label="Password"
+              placeholder="••••••"
+              type="password"
+              id="password"
+              autoComplete="new-password"
+              variant="outlined"
+              error={!!errors.password}
+              helperText={errors.password || ""}
+              color={!!errors.password ? "error" : "primary"}
+              value={formValues.password}
+              onChange={handleChange}
+              onBlur={handleBlur}
+            />
             <Button type="submit" fullWidth variant="contained" disabled={isSignUpSubmitButtonDisabled}>
               {isRegistering ? "Signing up..." : "Sign up"}
             </Button>
@@ -199,6 +181,6 @@ export const SignUp = () => {
           </Box>
         </StyledCard>
       </Stack>
-    </Stack>
+    </StackContainer>
   );
 };

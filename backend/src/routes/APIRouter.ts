@@ -15,7 +15,7 @@ export class APIRouter extends BaseRouter {
   }
 
   protected initializeRoutes(): void {
-    this.router.use("/auth", new AuthRouter(this.authService).getRouter());
+    this.router.use("/auth", new AuthRouter(this.authService, this.userService).getRouter());
     this.router.use("/user", new UserRouter(this.userService).getRouter());
   }
 }

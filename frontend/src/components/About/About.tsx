@@ -15,12 +15,13 @@ export const About = () => {
         </Typography>
 
         <Typography variant="body1" sx={{ mt: 2 }}>
-          ReliefHub is a community-driven platform designed to connect individuals in need of immediate assistance to those who can provide help with resources
-          and support during disaster.
+          ReliefHub is a community-driven platform designed to connect individuals in need of immediate assistance to
+          those who can provide help with resources and support during disaster.
         </Typography>
 
         <Typography variant="body1" sx={{ mt: 2 }}>
-          Let's create a world where no one has to feel abandoned in times of emergency. When government resources are not available, there is community.
+          Let's create a world where no one has to feel abandoned in times of emergency. When government resources are
+          not available, there is community.
         </Typography>
 
         <Typography variant="body2" sx={{ textAlign: "center", mt: 2 }}>

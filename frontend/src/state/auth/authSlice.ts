@@ -3,7 +3,7 @@ import { api, AuthUser } from "../../services/api";
 
 interface AuthState {
   isAuthenticated: boolean;
-  user: AuthUser | undefined;
+  user: AuthUser | undefined; // Includes `hasProfile` for initial auth flow
 }
 
 const initialState: AuthState = {
@@ -23,12 +23,24 @@ const authSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addMatcher(api.endpoints.login.matchFulfilled, (state, { payload }) => {
-        state.isAuthenticated = payload.user.emailVerified;
-        state.user = payload.user;
+        const { profile, ...authUser } = payload.user;
+        state.isAuthenticated = authUser.emailVerified;
+        state.user = {
+          ...authUser,
+          hasProfile: payload.user.hasProfile,
+        };
       })
       .addMatcher(api.endpoints.validateSession.matchFulfilled, (state, { payload }) => {
-        state.isAuthenticated = payload.valid;
-        state.user = payload.user;
+        if (payload.valid && payload.user) {
+          state.isAuthenticated = true;
+          state.user = {
+            ...payload.user,
+            hasProfile: payload.user.hasProfile ?? false,
+          };
+        } else {
+          state.isAuthenticated = false;
+          state.user = undefined;
+        }
       })
       .addMatcher(api.endpoints.logout.matchFulfilled, (state) => {
         state.isAuthenticated = false;

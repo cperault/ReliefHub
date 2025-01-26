@@ -1,13 +1,14 @@
 import { BaseRouter } from "./BaseRouter";
 import { AuthController } from "../controllers/AuthController";
 import { AuthService } from "../services/AuthService";
+import { UserService } from "../services/UserService";
 
 export class AuthRouter extends BaseRouter {
   private authController: AuthController;
 
-  constructor(authService: AuthService) {
+  constructor(authService: AuthService, userService: UserService) {
     super();
-    this.authController = new AuthController(authService);
+    this.authController = new AuthController(authService, userService);
   }
 
   protected initializeRoutes(): void {

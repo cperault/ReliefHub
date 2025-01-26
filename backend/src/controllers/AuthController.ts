@@ -1,11 +1,32 @@
 import { Request, Response } from "express";
 import { AuthResult, AuthService, TokenVerificationResult } from "../services/AuthService";
+import { User } from "firebase/auth";
+import { UserNotFoundError, UserService } from "../services/UserService";
+import { DocumentData } from "firebase/firestore";
+
+export interface SafeUserResponse {
+  uid: string;
+  email: string | null;
+  emailVerified: boolean;
+  createdAt: string | null;
+}
 
 export class AuthController {
   private authService: AuthService;
+  private userService: UserService;
 
-  constructor(authService: AuthService) {
+  constructor(authService: AuthService, userService: UserService) {
     this.authService = authService;
+    this.userService = userService;
+  }
+
+  private sanitizeUserData(user: User): SafeUserResponse {
+    return {
+      uid: user.uid,
+      email: user.email || null,
+      emailVerified: user.emailVerified,
+      createdAt: user.metadata.creationTime || null,
+    };
   }
 
   private sendUnknownErrorResponse = (res: Response, statusCode: number, error: unknown) => {
@@ -46,7 +67,7 @@ export class AuthController {
           await this.authService.sendVerificationEmail(result.user);
         }
 
-        res.status(statusCode).json({ user: result.user, message });
+        res.status(statusCode).json({ user: result.user ? this.sanitizeUserData(result.user) : undefined, message });
         return;
       }
 
@@ -63,12 +84,34 @@ export class AuthController {
         });
       }
 
+      let userProfileResult: DocumentData | null = null;
+      let hasProfile = false;
+
+      try {
+        userProfileResult = await this.userService.getUser(result.user.uid);
+        hasProfile = true;
+      } catch (error) {
+        if (!(error instanceof UserNotFoundError)) {
+          throw error;
+        }
+      }
+
+      const sanitizedUser = this.sanitizeUserData(result.user);
+      const userResponse: SafeUserResponse & { hasProfile: boolean } = {
+        ...sanitizedUser,
+        hasProfile: hasProfile,
+        ...(userProfileResult && { profile: userProfileResult }),
+      };
+
       res.status(successStatusCode).json({
-        user: result.user,
+        user: userResponse,
         message: `${isRegistration ? "Registration" : "Login"} successful`,
       });
     } catch (error) {
-      res.status(500).json({ error: "Internal server error while processing authentication" });
+      res.status(500).json({
+        error: "Internal server error while processing authentication",
+        details: process.env.NODE_ENV === "dev" ? (error as Error).message : undefined,
+      });
     }
   };
 
@@ -135,9 +178,28 @@ export class AuthController {
     const validateSessionResult = await this.authService.validateSession(sessionCookie);
 
     if (typeof validateSessionResult === "object" && validateSessionResult.valid) {
-      res.status(200).json({ valid: true, user: validateSessionResult.user });
+      let userProfileResult = null;
+      let hasProfile = false;
+
+      try {
+        userProfileResult = await this.userService.getUser(validateSessionResult.user.uid);
+        hasProfile = true;
+      } catch (error) {
+        if (!(error instanceof UserNotFoundError)) {
+          throw error;
+        }
+      }
+
+      res.status(200).json({
+        valid: true,
+        user: {
+          ...validateSessionResult.user,
+          hasProfile,
+          ...(userProfileResult && { profile: userProfileResult }),
+        },
+      });
     } else {
-      res.status(401).send("Invalid session cookie.");
+      res.status(401).json({ error: "Invalid session cookie" });
     }
   };
 }
