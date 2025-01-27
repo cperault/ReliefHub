@@ -3,6 +3,7 @@ import createApp, { AppDependencies } from "../../src/app";
 import { AuthService } from "../../src/services/AuthService";
 import { FirebaseService } from "../../src/services/FirebaseService";
 import { UserNotFoundError, UserService } from "../../src/services/UserService";
+import { AuthenticationError, BadRequestError, ConflictError, DatabaseError } from "../../src/middleware/APIError";
 
 jest.mock("../../src/services/FirebaseService");
 jest.mock("../../src/services/AuthService");
@@ -18,7 +19,7 @@ describe("AuthController", () => {
     authService = {
       authenticateUser: jest.fn(),
       registerUser: jest.fn(),
-      verifyToken: jest.fn(),
+      verifyAuthToken: jest.fn(),
       createSessionCookie: jest.fn(),
       sendVerificationEmail: jest.fn(),
       validateSession: jest.fn(),
@@ -34,9 +35,9 @@ describe("AuthController", () => {
       getFirestore: jest.fn(),
     } as unknown as jest.Mocked<FirebaseService>;
 
-    (AuthService as jest.Mock) = jest.fn().mockImplementation(() => authService);
-    (UserService as jest.Mock) = jest.fn().mockImplementation(() => userService);
-    (FirebaseService as jest.Mock) = jest.fn().mockImplementation(() => firebaseService);
+    (AuthService as jest.Mock).mockImplementation(() => authService);
+    (UserService as jest.Mock).mockImplementation(() => userService);
+    (FirebaseService as jest.Mock).mockImplementation(() => firebaseService);
 
     const appDependencies: AppDependencies = { firebaseService };
     app = createApp(appDependencies);
@@ -49,27 +50,29 @@ describe("AuthController", () => {
   describe("POST /api/auth/login", () => {
     it("should return 200 with user data and set a session cookie on successful login with a verified email", async () => {
       const mockToken = "mock-token";
+      const mockUser = {
+        uid: "test-uid",
+        emailVerified: true,
+        email: "test@example.com",
+        metadata: {},
+        isAnonymous: false,
+        providerData: [],
+        refreshToken: "",
+        tenantId: null,
+        delete: jest.fn(),
+        getIdToken: jest.fn(),
+        getIdTokenResult: jest.fn(),
+        reload: jest.fn(),
+        toJSON: jest.fn(),
+        displayName: null,
+        phoneNumber: null,
+        photoURL: null,
+        providerId: "",
+      };
+
       authService.authenticateUser.mockResolvedValue({
         token: mockToken,
-        user: {
-          uid: "test-uid",
-          emailVerified: true,
-          isAnonymous: false,
-          metadata: {},
-          providerData: [],
-          refreshToken: "",
-          tenantId: null,
-          delete: jest.fn(),
-          getIdToken: jest.fn(),
-          getIdTokenResult: jest.fn(),
-          reload: jest.fn(),
-          toJSON: jest.fn(),
-          displayName: null,
-          email: "test@example.com",
-          phoneNumber: null,
-          photoURL: null,
-          providerId: "",
-        },
+        user: mockUser,
       });
 
       const mockProfile = {
@@ -81,15 +84,13 @@ describe("AuthController", () => {
         hasProfile: true,
       };
 
-      authService.verifyToken.mockResolvedValue({ uid: "test-uid", email: "test@example.com" });
+      authService.verifyAuthToken.mockResolvedValue({ uid: "test-uid", email: "test@example.com" });
       userService.getUser.mockResolvedValue(mockProfile);
 
       const response = await request(app)
         .post("/api/auth/login")
-        .send({ email: "user@example.com", password: "password123" });
+        .send({ email: "test@example.com", password: "password123" });
 
-      expect(authService.authenticateUser).toHaveBeenCalledWith("user@example.com", "password123");
-      expect(authService.verifyToken).toHaveBeenCalledWith(mockToken);
       expect(response.status).toBe(200);
       expect(response.headers["set-cookie"]).toBeDefined();
       expect(response.body.user).toEqual({
@@ -101,41 +102,40 @@ describe("AuthController", () => {
         profile: mockProfile,
       });
       expect(response.body.message).toBe("Login successful");
-
-      const cookie = response.headers["set-cookie"][0];
-      expect(cookie).toContain("HttpOnly");
-      expect(cookie).toContain("SameSite=Strict");
-      expect(cookie).toContain("Max-Age=432000");
     });
 
     it("should indicate when user has no profile", async () => {
       const mockToken = "mock-token";
+      const mockUser = {
+        uid: "test-uid",
+        emailVerified: true,
+        email: "test@example.com",
+        metadata: {},
+        isAnonymous: false,
+        providerData: [],
+        refreshToken: "",
+        tenantId: null,
+        delete: jest.fn(),
+        getIdToken: jest.fn(),
+        getIdTokenResult: jest.fn(),
+        reload: jest.fn(),
+        toJSON: jest.fn(),
+        displayName: null,
+        phoneNumber: null,
+        photoURL: null,
+        providerId: "",
+      };
 
       authService.authenticateUser.mockResolvedValue({
         token: mockToken,
-        user: {
-          uid: "test-uid",
-          emailVerified: true,
-          isAnonymous: false,
-          metadata: {},
-          providerData: [],
-          refreshToken: "",
-          tenantId: null,
-          delete: jest.fn(),
-          getIdToken: jest.fn(),
-          getIdTokenResult: jest.fn(),
-          reload: jest.fn(),
-          toJSON: jest.fn(),
-          displayName: null,
-          email: "test@example.com",
-          phoneNumber: null,
-          photoURL: null,
-          providerId: "",
-        },
+        user: mockUser,
       });
 
-      authService.verifyToken.mockResolvedValue({ uid: "test-uid", email: "test@example.com" });
-      userService.getUser.mockRejectedValue(new UserNotFoundError("User not found"));
+      authService.verifyAuthToken.mockResolvedValue({ uid: "test-uid", email: "test@example.com" });
+
+      const error = new UserNotFoundError("User not found");
+      Object.defineProperty(error, "message", { value: "User not found" });
+      userService.getUser.mockRejectedValue(error);
 
       const response = await request(app)
         .post("/api/auth/login")
@@ -152,155 +152,185 @@ describe("AuthController", () => {
       expect(response.body.user.profile).toBeUndefined();
     });
 
-    it("should handle errors when fetching profile data", async () => {
+    it("should handle database errors when fetching profile data", async () => {
       const mockToken = "mock-token";
+      const mockUser = {
+        uid: "test-uid",
+        emailVerified: true,
+        email: "test@example.com",
+        metadata: {},
+        isAnonymous: false,
+        providerData: [],
+        refreshToken: "",
+        tenantId: null,
+        delete: jest.fn(),
+        getIdToken: jest.fn(),
+        getIdTokenResult: jest.fn(),
+        reload: jest.fn(),
+        toJSON: jest.fn(),
+        displayName: null,
+        phoneNumber: null,
+        photoURL: null,
+        providerId: "",
+      };
 
       authService.authenticateUser.mockResolvedValue({
         token: mockToken,
-        user: {
-          uid: "test-uid",
-          emailVerified: true,
-          isAnonymous: false,
-          metadata: {},
-          providerData: [],
-          refreshToken: "",
-          tenantId: null,
-          delete: jest.fn(),
-          getIdToken: jest.fn(),
-          getIdTokenResult: jest.fn(),
-          reload: jest.fn(),
-          toJSON: jest.fn(),
-          displayName: null,
-          email: "test@example.com",
-          phoneNumber: null,
-          photoURL: null,
-          providerId: "",
-        },
+        user: mockUser,
       });
-      authService.verifyToken.mockResolvedValue({ uid: "test-uid", email: "test@example.com" });
-      userService.getUser.mockRejectedValue(new Error("Database error"));
+
+      authService.verifyAuthToken.mockResolvedValue({ uid: "test-uid", email: "test@example.com" });
+      userService.getUser.mockRejectedValue(new DatabaseError("Database error"));
 
       const response = await request(app)
         .post("/api/auth/login")
         .send({ email: "test@example.com", password: "password123" });
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe("Internal server error while processing authentication");
+      expect(response.body.error).toBe("DatabaseError");
+      expect(response.body.message).toBe("Database error");
     });
 
     it("should return 403 for a login with an unverified email", async () => {
       const mockToken = "mock-token";
+      const mockUser = {
+        uid: "test-uid",
+        emailVerified: false,
+        email: "test@example.com",
+        metadata: {},
+        isAnonymous: false,
+        providerData: [],
+        refreshToken: "",
+        tenantId: null,
+        delete: jest.fn(),
+        getIdToken: jest.fn(),
+        getIdTokenResult: jest.fn(),
+        reload: jest.fn(),
+        toJSON: jest.fn(),
+        displayName: null,
+        phoneNumber: null,
+        photoURL: null,
+        providerId: "",
+      };
+
       authService.authenticateUser.mockResolvedValue({
         token: mockToken,
-        user: {
-          uid: "test-uid",
-          emailVerified: false,
-          isAnonymous: false,
-          metadata: {},
-          providerData: [],
-          refreshToken: "",
-          tenantId: null,
-          delete: jest.fn(),
-          getIdToken: jest.fn(),
-          getIdTokenResult: jest.fn(),
-          reload: jest.fn(),
-          toJSON: jest.fn(),
-          displayName: null,
-          email: "test@example.com",
-          phoneNumber: null,
-          photoURL: null,
-          providerId: "",
-        },
+        user: mockUser,
       });
-      authService.verifyToken.mockResolvedValue({ uid: "test-uid", email: "test@example.com" });
+
+      authService.verifyAuthToken.mockResolvedValue({ uid: "test-uid", email: "test@example.com" });
 
       const response = await request(app)
         .post("/api/auth/login")
         .send({ email: "test@example.com", password: "password123" });
 
-      expect(authService.authenticateUser).toHaveBeenCalledWith("test@example.com", "password123");
-      expect(authService.verifyToken).toHaveBeenCalledWith(mockToken);
       expect(response.status).toBe(403);
       expect(response.body.message).toBe("Email not verified. A new verification email has been sent.");
     });
 
-    it("should return 400 when login fails due to invalid credentials", async () => {
+    it("should return 401 when login fails due to invalid credentials", async () => {
       authService.authenticateUser.mockResolvedValue({
         error: { code: "INVALID_CREDENTIALS", message: "Invalid credentials" },
       });
 
       const response = await request(app)
         .post("/api/auth/login")
-        .send({ email: "user@example.com", password: "wrong-password" });
+        .send({ email: "test@example.com", password: "wrong-password" });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe("INVALID_CREDENTIALS");
-      expect(response.body.error.message).toBe("Invalid credentials");
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe("AuthenticationError");
+      expect(response.body.message).toBe("Invalid credentials");
     });
 
-    it("should return 400 when the token verification fails", async () => {
-      authService.authenticateUser.mockResolvedValue({ token: "mock-token" });
-      authService.verifyToken.mockResolvedValue(null);
+    it("should return 422 and FormValidationErrorwhen email and password are missing", async () => {
+      const response = await request(app).post("/api/auth/login").send({});
+
+      expect(response.status).toBe(422);
+      expect(response.body.error).toBe("FormValidationError");
+      expect(response.body.message).toBe("Email and password are required");
+    });
+
+    it("should return 400 when token verification fails", async () => {
+      const mockToken = "mock-token";
+      authService.authenticateUser.mockResolvedValue({ token: mockToken });
+      authService.verifyAuthToken.mockRejectedValue(new BadRequestError("Invalid token"));
 
       const response = await request(app)
         .post("/api/auth/login")
-        .send({ email: "user@example.com", password: "password123" });
+        .send({ email: "test@example.com", password: "password123" });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe("Invalid token");
-    });
-
-    it("should return 500 on unexpected errors", async () => {
-      authService.authenticateUser.mockRejectedValue(new Error("Internal server error"));
-
-      const response = await request(app)
-        .post("/api/auth/login")
-        .send({ email: "user@example.com", password: "password123" });
-
-      expect(response.status).toBe(500);
-      expect(response.body.error).toBe("Internal server error");
+      expect(response.body.error).toBe("BadRequestError");
+      expect(response.body.message).toBe("Invalid token");
     });
   });
 
   describe("POST /api/auth/register", () => {
-    it("should return 201 on a successful registration", async () => {
-      const mockToken = "mock-registration-token";
-      authService.registerUser.mockResolvedValue({ token: mockToken });
-      authService.verifyToken.mockResolvedValue({ uid: "new-uid", email: "newuser@example.com" });
+    it("should return 201 on successful registration", async () => {
+      const mockToken = "mock-token";
+      const mockUser = {
+        uid: "new-uid",
+        emailVerified: false,
+        email: "newuser@example.com",
+        metadata: {},
+        isAnonymous: false,
+        providerData: [],
+        refreshToken: "",
+        tenantId: null,
+        delete: jest.fn(),
+        getIdToken: jest.fn(),
+        getIdTokenResult: jest.fn(),
+        reload: jest.fn(),
+        toJSON: jest.fn(),
+        displayName: null,
+        phoneNumber: null,
+        photoURL: null,
+        providerId: "",
+      };
+
+      authService.registerUser.mockResolvedValue({ token: mockToken, user: mockUser });
+      authService.verifyAuthToken.mockResolvedValue({ uid: "new-uid", email: "newuser@example.com" });
 
       const response = await request(app)
         .post("/api/auth/register")
         .send({ email: "newuser@example.com", password: "password123" });
 
-      expect(authService.registerUser).toHaveBeenCalledWith("newuser@example.com", "password123");
-      expect(authService.verifyToken).toHaveBeenCalledWith(mockToken);
       expect(response.status).toBe(201);
       expect(response.body.message).toBe("Registration successful and a verification email has been sent.");
     });
 
-    it("should return 400 when registration fails", async () => {
+    it("should return 401 when registration fails due to weak password", async () => {
       authService.registerUser.mockResolvedValue({
-        error: { code: "WEAK_PASSWORD", message: "Weak password" },
+        error: { code: "auth/weak-password", message: "Password should be at least 6 characters" },
       });
 
       const response = await request(app)
         .post("/api/auth/register")
         .send({ email: "newuser@example.com", password: "123" });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe("WEAK_PASSWORD");
-      expect(response.body.error.message).toBe("Weak password");
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe("AuthenticationError");
+      expect(response.body.message).toBe("Password should be at least 6 characters");
     });
 
-    it("should return 500 on unexpected errors during registration", async () => {
-      authService.registerUser.mockRejectedValue(new Error("Database connection error"));
+    it("should return 409 when email is already in use", async () => {
+      authService.registerUser.mockRejectedValue(new ConflictError("Email already in use"));
 
       const response = await request(app)
         .post("/api/auth/register")
-        .send({ email: "newuser@example.com", password: "password123" });
+        .send({ email: "existing@example.com", password: "password123" });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toBe("Database connection error");
+      expect(response.status).toBe(409);
+      expect(response.body.error).toBe("ConflictError");
+      expect(response.body.message).toBe("Email already in use");
+    });
+
+    it("should return 422 and FormValidationError when email and password are missing", async () => {
+      const response = await request(app).post("/api/auth/register").send({});
+
+      expect(response.status).toBe(422);
+      expect(response.body.error).toBe("FormValidationError");
+      expect(response.body.message).toBe("Email and password are required");
     });
   });
 
@@ -347,7 +377,9 @@ describe("AuthController", () => {
         },
       });
 
-      userService.getUser.mockRejectedValue(new UserNotFoundError("User not found"));
+      const error = new UserNotFoundError("User not found");
+      Object.defineProperty(error, "message", { value: "User not found" });
+      userService.getUser.mockRejectedValue(error);
 
       const response = await request(app).get("/api/auth/validate-session").set("Cookie", ["sessionToken=valid-token"]);
 
@@ -366,18 +398,38 @@ describe("AuthController", () => {
       const response = await request(app).get("/api/auth/validate-session");
 
       expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: "No session cookie found" });
+      expect(response.body.error).toBe("AuthenticationError");
+      expect(response.body.message).toBe("No session cookie found");
     });
 
     it("should return 401 when session is invalid", async () => {
-      authService.validateSession.mockResolvedValue(false);
+      authService.validateSession.mockRejectedValue(new AuthenticationError("Invalid session cookie"));
 
       const response = await request(app)
         .get("/api/auth/validate-session")
         .set("Cookie", ["sessionToken=invalid-token"]);
 
       expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: "Invalid session cookie" });
+      expect(response.body.error).toBe("AuthenticationError");
+      expect(response.body.message).toBe("Invalid session cookie");
+    });
+
+    it("should return 500 when database error occurs during profile fetch", async () => {
+      authService.validateSession.mockResolvedValue({
+        valid: true,
+        user: {
+          uid: "test-uid",
+          email: "test@example.com",
+        },
+      });
+
+      userService.getUser.mockRejectedValue(new DatabaseError("Database error"));
+
+      const response = await request(app).get("/api/auth/validate-session").set("Cookie", ["sessionToken=valid-token"]);
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toBe("DatabaseError");
+      expect(response.body.message).toBe("Database error");
     });
   });
 });

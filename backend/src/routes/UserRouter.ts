@@ -12,10 +12,23 @@ export class UserRouter extends BaseRouter {
   }
 
   protected initializeRoutes(): void {
-    this.router.get("/", AuthenticateSession.verifyToken, this.userController.getAllUsers.bind(this.userController));
-    this.router.get("/:id", AuthenticateSession.verifyToken, this.userController.getUserById.bind(this.userController));
+    this.router.get("/", AuthenticateSession.verifySession, this.userController.getAllUsers.bind(this.userController));
+    this.router.get(
+      "/:id",
+      AuthenticateSession.verifySession,
+      this.userController.getUserById.bind(this.userController)
+    );
     this.router.post("/", this.userController.createUser.bind(this.userController));
-    this.router.put("/:id", AuthenticateSession.verifyToken, this.userController.updateUser.bind(this.userController));
-    this.router.delete("/:id", AuthenticateSession.verifyToken, this.userController.deleteUser.bind(this.userController));
+    this.router.put(
+      "/:id",
+      AuthenticateSession.verifySession,
+      this.userController.updateUser.bind(this.userController)
+    );
+    this.router.delete(
+      "/:id",
+      AuthenticateSession.verifySession,
+      this.userController.deleteUser.bind(this.userController)
+    );
   }
 }
+  

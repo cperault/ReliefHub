@@ -8,6 +8,12 @@ const config: Config.InitialOptions = {
   transform: {
     "^.+\\.tsx?$": "ts-jest",
   },
+  maxConcurrency: 1,
+  testPathIgnorePatterns: ["/node_modules/", "/dist/"],
+  setupFiles: ["<rootDir>/jest.setup.ts"],
+  testEnvironmentOptions: {
+    NODE_OPTIONS: "--no-warnings",
+  },
 };
 
 export default config;

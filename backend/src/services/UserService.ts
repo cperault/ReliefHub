@@ -25,7 +25,7 @@ export class UserService {
       const userDocSnap: DocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists()) {
-        throw new UserExistsError();
+        throw new UserExistsError("User already exists");
       }
 
       await setDoc(userDocRef, userData);
@@ -63,7 +63,7 @@ export class UserService {
       if (userDocSnap.exists()) {
         return userDocSnap.data();
       } else {
-        throw new UsersNotFoundError();
+        throw new UsersNotFoundError("Users not found");
       }
     } catch (error: unknown) {
       if (error instanceof UsersNotFoundError) {
@@ -99,7 +99,7 @@ export class UserService {
       if (userDocSnap.exists()) {
         return userDocSnap.data();
       } else {
-        throw new UserNotFoundError();
+        throw new UserNotFoundError("User not found");
       }
     } catch (error: unknown) {
       if (error instanceof UserNotFoundError) {

@@ -21,6 +21,10 @@ jest.mock("winston", () => {
       combine: jest.fn((...formats) => formats),
       colorize: jest.fn(() => "colorize"),
       simple: jest.fn(() => "simple"),
+      timestamp: jest.fn(() => "timestamp"),
+      errors: jest.fn(() => "errors"),
+      json: jest.fn(() => "json"),
+      printf: jest.fn(() => "printf"),
     },
     addColors: jest.fn(),
   };
@@ -99,7 +103,7 @@ describe("Logger", () => {
         const spy = jest.spyOn(logger["logger"], level);
         logger.log(level, testMessage);
 
-        expect(spy).toHaveBeenCalledWith(testMessage);
+        expect(spy).toHaveBeenCalledWith(testMessage, undefined);
       });
     });
 
@@ -109,7 +113,16 @@ describe("Logger", () => {
 
         logger[level](testMessage);
 
-        expect(mockedLogMethod).toHaveBeenCalledWith(testMessage);
+        expect(mockedLogMethod).toHaveBeenCalledWith(testMessage, undefined);
+      });
+
+      it(`should call the ${level} method with meta data`, () => {
+        const mockedLogMethod = (winston.createLogger as jest.Mock).mock.results[0].value[level];
+        const meta = { key: "value" };
+
+        logger[level](testMessage, meta);
+
+        expect(mockedLogMethod).toHaveBeenCalledWith(testMessage, meta);
       });
     });
   });
