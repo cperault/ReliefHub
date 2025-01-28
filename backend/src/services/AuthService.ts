@@ -8,8 +8,14 @@ import {
   User,
 } from "firebase/auth";
 import { Auth as AdminAuth } from "firebase-admin/auth";
-import { Logger } from "../utils/Logger";
 import { FirebaseService } from "./FirebaseService";
+import {
+  AuthenticationError,
+  BadRequestError,
+  ConflictError,
+  FormValidationError,
+  InternalServerError,
+} from "../middleware/APIError";
 
 export type AuthResult = {
   token?: string;
@@ -36,12 +42,34 @@ export type SessionValidationResult = {
 export class AuthService {
   private auth: Auth;
   private adminAuth: AdminAuth;
-  private logger: Logger;
 
   constructor(firebaseService: FirebaseService) {
     this.auth = firebaseService.getFirebaseAuth();
     this.adminAuth = firebaseService.getAdminAuth();
-    this.logger = Logger.getInstance();
+  }
+
+  private handleAuthError(error: unknown): never {
+    if (error && typeof error === "object" && "code" in error) {
+      const authError = error as { code: string; message: string };
+      switch (authError.code) {
+        case "auth/user-not-found":
+        case "auth/wrong-password":
+          throw new AuthenticationError("Invalid email or password");
+        case "auth/invalid-email":
+          throw new FormValidationError({ email: "Invalid email format" }, "Invalid email format");
+        case "auth/email-already-in-use":
+          throw new ConflictError("Email already in use");
+        case "auth/weak-password":
+          throw new FormValidationError({ password: "Password is too weak" }, "Password is too weak");
+        case "auth/invalid-credential":
+          throw new AuthenticationError("Invalid credentials");
+        default:
+          throw new InternalServerError(
+            process.env.NODE_ENV === "dev" ? authError.message : "An authentication error occurred"
+          );
+      }
+    }
+    throw new InternalServerError("An unknown error occurred");
   }
 
   private async handleAuthOperation(operationName: string, operation: () => Promise<any>): Promise<AuthResult> {
@@ -63,59 +91,20 @@ export class AuthService {
     }
   }
 
-  private handleAuthError(error: unknown): AuthResult {
-    if (typeof error === "object" && error !== null && "code" in error && "message" in error) {
-      return {
-        error: {
-          code: (error as any).code,
-          message: (error as any).message,
-        },
-      };
-    }
-
-    return {
-      error: {
-        code: "unknown_error",
-        message: "An unknown error occurred.",
-      },
-    };
-  }
-
   public async createSessionCookie(token: string): Promise<string> {
     try {
       const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
       return await this.adminAuth.createSessionCookie(token, { expiresIn });
     } catch (error) {
-      this.logger.error(`Error creating session cookie: ${(error as Error).message}`);
-      throw new Error("Error creating session cookie");
+      throw new InternalServerError("Error creating session cookie");
     }
   }
 
-  public authenticateUser(email: string, password: string): Promise<AuthResult> {
-    return this.handleAuthOperation("login", () => signInWithEmailAndPassword(this.auth, email, password));
-  }
-
-  public sendVerificationEmail(user: User): Promise<AuthResult> {
-    return this.handleAuthOperation("verifyEmail", () => sendEmailVerification(user));
-  }
-
-  public registerUser(email: string, password: string): Promise<AuthResult> {
-    return this.handleAuthOperation("register", () => createUserWithEmailAndPassword(this.auth, email, password));
-  }
-
-  public resetPassword(email: string): Promise<AuthResult> {
-    return this.handleAuthOperation("reset", () => sendPasswordResetEmail(this.auth, email));
-  }
-
-  public async logout(): Promise<void> {
-    try {
-      await signOut(this.auth);
-    } catch (error) {
-      this.logger.error(`Error logging out: ${(error as Error).message}`);
+  public async validateSession(sessionCookie: string): Promise<SessionValidationResult> {
+    if (!sessionCookie) {
+      throw new BadRequestError("Session cookie is required");
     }
-  }
 
-  public async validateSession(sessionCookie: string): Promise<boolean | SessionValidationResult> {
     try {
       const decodedClaims = await this.adminAuth.verifySessionCookie(sessionCookie, false);
 
@@ -127,18 +116,76 @@ export class AuthService {
         },
       };
     } catch (error) {
-      this.logger.error(`Error validating session: ${(error as Error).message}`);
-      return false;
+      throw new AuthenticationError("Invalid or expired session");
     }
   }
 
-  public async verifyToken(authToken: string): Promise<TokenVerificationResult | null> {
+  public async verifyAuthToken(authToken: string): Promise<TokenVerificationResult> {
+    if (!authToken) {
+      throw new BadRequestError("Auth token is required");
+    }
+
     try {
       const decodedToken = await this.adminAuth.verifyIdToken(authToken);
       return { uid: decodedToken.uid, email: decodedToken.email };
     } catch (error) {
-      this.logger.error(`Error verifying token: ${(error as Error).message}`);
-      return null;
+      throw new AuthenticationError("Invalid or expired token");
     }
+  }
+
+  public async logout(): Promise<void> {
+    try {
+      await signOut(this.auth);
+    } catch (error) {
+      throw new InternalServerError("Error logging out");
+    }
+  }
+
+  public async authenticateUser(email: string, password: string): Promise<AuthResult> {
+    if (!email || !password) {
+      const errors: Record<string, string> = {};
+
+      if (!email) errors.email = "Email is required";
+      if (!password) errors.password = "Password is required";
+
+      throw new FormValidationError(errors, "Email and password are required");
+    }
+
+    return await this.handleAuthOperation(
+      "login",
+      async () => await signInWithEmailAndPassword(this.auth, email, password)
+    );
+  }
+
+  public async registerUser(email: string, password: string): Promise<AuthResult> {
+    if (!email || !password) {
+      const errors: Record<string, string> = {};
+
+      if (!email) errors.email = "Email is required";
+      if (!password) errors.password = "Password is required";
+
+      throw new FormValidationError(errors, "Email and password are required");
+    }
+
+    return await this.handleAuthOperation(
+      "register",
+      async () => await createUserWithEmailAndPassword(this.auth, email, password)
+    );
+  }
+
+  public async sendVerificationEmail(user: User): Promise<AuthResult> {
+    if (!user) {
+      throw new BadRequestError("User is required");
+    }
+
+    return await this.handleAuthOperation("verifyEmail", async () => await sendEmailVerification(user));
+  }
+
+  public async resetPassword(email: string): Promise<AuthResult> {
+    if (!email) {
+      throw new FormValidationError({ email: "Email is required" }, "Email is required");
+    }
+
+    return await this.handleAuthOperation("reset", async () => await sendPasswordResetEmail(this.auth, email));
   }
 }

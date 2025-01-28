@@ -8,23 +8,16 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { APIRouter } from "./routes/APIRouter";
 import { AuthService } from "./services/AuthService";
-import { Logger } from "./utils/Logger";
 import { UserService } from "./services/UserService";
 import { FirebaseService } from "./services/FirebaseService";
 import { AuthenticateSession } from "./middleware/AuthenticateSession";
-
-interface Error {
-  status?: number;
-  message?: string;
-}
-
-interface Request extends express.Request {}
-interface Response extends express.Response {}
-interface NextFunction extends express.NextFunction {}
+import { APIError } from "./middleware/APIError";
 
 export interface AppDependencies {
   firebaseService: FirebaseService;
 }
+
+process.env.NODE_NO_WARNINGS = "1";
 
 const createApp = (appDependencies: AppDependencies) => {
   const { firebaseService } = appDependencies;
@@ -34,7 +27,6 @@ const createApp = (appDependencies: AppDependencies) => {
 
   AuthenticateSession.initializeFirebaseService(firebaseService); // for middleware of non /api/auth routes
 
-  const logger = Logger.getInstance();
   const app = express();
 
   app.use(bodyParser.json());
@@ -47,25 +39,16 @@ const createApp = (appDependencies: AppDependencies) => {
     })
   );
   app.use(helmet());
-  app.use(morgan("dev"));
+
+  if (process.env.NODE_ENV !== "test") {
+    app.use(morgan("dev"));
+  }
 
   const apiRouter = new APIRouter(authService, userService);
   app.use("/api", apiRouter.getRouter());
 
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    res.status(404).json({
-      error: "Not Found",
-      message: `The path ${req.originalUrl} does not exist on this server.`,
-    });
-  });
-
-  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    logger.error(`${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
-    res.status(500).json({
-      error: "Internal Server Error",
-      message: "Something went wrong on the server.",
-    });
-  });
+  app.use(APIError.notFoundHandler);
+  app.use(APIError.errorHandler);
 
   return app;
 };

@@ -51,36 +51,57 @@ export class Logger {
     const env = process.env.NODE_ENV || "dev";
     const transports: winston.transport[] = [];
 
-    if (env !== "prod") {
+    if (env !== "prod" && env !== "test") {
       transports.push(
         new winston.transports.Console({
-          format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.colorize(),
+            winston.format.errors({ stack: env === "dev" }),
+            winston.format.printf(({ timestamp, level, message, stack }) => {
+              return `${timestamp} ${level}: ${message}${stack ? "\n" + stack : ""}`;
+            })
+          ),
         })
       );
     }
 
-    transports.push(new winston.transports.File({ filename: "logs/error.log", level: "error" }));
+    transports.push(
+      new winston.transports.File({
+        filename: "logs/error.log",
+        level: "error",
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.errors({ stack: false }),
+          winston.format.json()
+        ),
+      }),
+      new winston.transports.File({
+        filename: "logs/combined.log",
+        format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+      })
+    );
 
     return transports;
   }
 
-  public log(level: LogLevel, message: string): void {
-    this.logger[level](message);
+  public log(level: LogLevel, message: string, meta?: any): void {
+    this.logger[level](message, meta);
   }
 
-  public error(message: string): void {
-    this.log("error", message);
+  public error(message: string, meta?: any): void {
+    this.log("error", message, meta);
   }
 
-  public warn(message: string): void {
-    this.log("warn", message);
+  public warn(message: string, meta?: any): void {
+    this.log("warn", message, meta);
   }
 
-  public info(message: string): void {
-    this.log("info", message);
+  public info(message: string, meta?: any): void {
+    this.log("info", message, meta);
   }
 
-  public debug(message: string): void {
-    this.log("debug", message);
+  public debug(message: string, meta?: any): void {
+    this.log("debug", message, meta);
   }
 }

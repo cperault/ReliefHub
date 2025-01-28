@@ -60,7 +60,7 @@ describe("APIRouter", () => {
     firebaseService = {
       getFirebaseAuth: jest.fn(),
     } as unknown as jest.Mocked<FirebaseService>;
-    (AuthenticateSession.verifyToken as jest.Mock).mockImplementation((req, res, next) => {
+    (AuthenticateSession.verifySession as jest.Mock).mockImplementation((req, res, next) => {
       req.user = { id: "mock-user-id" };
       next();
     });

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { FirebaseService } from "../services/FirebaseService";
 import { DecodedIdToken } from "firebase-admin/auth";
+import { AuthenticationError } from "./APIError";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -15,13 +16,12 @@ export class AuthenticateSession {
     AuthenticateSession.firebaseService = firebaseService;
   }
 
-  public static verifyToken(req: Request, res: Response, next: NextFunction): void {
+  public static verifySession(req: Request, res: Response, next: NextFunction): void {
     try {
       const sessionToken = req.cookies.sessionToken;
 
       if (!sessionToken) {
-        res.status(401).json({ error: "Authentication token missing" });
-        return;
+        throw new AuthenticationError("Authentication token missing");
       }
 
       AuthenticateSession.firebaseService
@@ -31,11 +31,10 @@ export class AuthenticateSession {
           next();
         })
         .catch(() => {
-          res.status(401).json({ error: "Invalid or expired token" });
+          throw new AuthenticationError("Invalid or expired token");
         });
     } catch (error: unknown) {
-      res.status(401).json({ error: "Authentication failed" });
-      return;
+      throw new AuthenticationError("Authentication failed");
     }
   }
 }

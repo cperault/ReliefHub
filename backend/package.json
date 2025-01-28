@@ -5,10 +5,10 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "ts-node src/server.ts",
-    "dev": "nodemon -r ts-node/register src/server.ts",
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "start": "NODE_OPTIONS=--no-warnings ts-node src/server.ts",
+    "dev": "NODE_OPTIONS=--no-warnings nodemon -r ts-node/register src/server.ts",
+    "test": "NODE_OPTIONS=--no-warnings NODE_ENV=test jest",
+    "test:watch": "NODE_OPTIONS=--no-warnings jest --watch",
     "test:coverage": "jest --coverage"
   },
   "keywords": [],

@@ -1,30 +1,19 @@
 import request from "supertest";
 import createApp, { AppDependencies } from "../../src/app";
-import {
-  UserCreateError,
-  UserDeleteError,
-  UserExistsError,
-  UserGetAllError,
-  UserGetError,
-  UserNotFoundError,
-  UserService,
-  UsersNotFoundError,
-  UserUpdateError,
-} from "../../src/services/UserService";
+import { UserService, UserNotFoundError, UsersNotFoundError } from "../../src/services/UserService";
 import { FirebaseService } from "../../src/services/FirebaseService";
 import { AuthenticateSession } from "../../src/middleware/AuthenticateSession";
+import {
+  APIError,
+  AuthenticationError,
+  BadRequestError,
+  ConflictError,
+  DatabaseError,
+} from "../../src/middleware/APIError";
 
 jest.mock("../../src/services/FirebaseService");
 jest.mock("../../src/services/UserService");
 jest.mock("../../src/middleware/AuthenticateSession");
-
-const createError = (ErrorClass: any, message: string) => {
-  return Object.assign(new ErrorClass(message), {
-    message,
-    name: ErrorClass.name,
-    stack: new Error().stack,
-  });
-};
 
 describe("UserController", () => {
   let app: ReturnType<typeof createApp>;
@@ -46,11 +35,6 @@ describe("UserController", () => {
       getAdminAuth: jest.fn(),
     } as unknown as jest.Mocked<FirebaseService>;
 
-    (AuthenticateSession.verifyToken as jest.Mock).mockImplementation((req, res, next) => {
-      req.user = { uid: "1" };
-      next();
-    });
-
     (UserService as jest.Mock) = jest.fn().mockImplementation(() => userService);
     (FirebaseService as jest.Mock) = jest.fn().mockImplementation(() => firebaseService);
 
@@ -64,179 +48,188 @@ describe("UserController", () => {
 
   describe("POST /api/user", () => {
     it("should create a user and return 201", async () => {
-      userService.createUser.mockResolvedValue({ id: "1", email: "test@eample.com" });
+      const userData = { email: "test@example.com", password: "password123" };
+      userService.createUser.mockResolvedValue({ id: "1", ...userData });
 
-      const response = await request(app)
-        .post("/api/user")
-        .send({ email: "test@example.com", password: "password123" });
+      const response = await request(app).post("/api/user").send(userData);
 
-      expect(userService.createUser).toHaveBeenCalledWith({ email: "test@example.com", password: "password123" });
+      expect(userService.createUser).toHaveBeenCalledWith(userData);
       expect(response.status).toBe(201);
       expect(response.body.message).toBe("User created successfully");
     });
 
-    it("should return 400 for invalid data", async () => {
-      userService.createUser.mockRejectedValue(createError(UserCreateError, "Invalid user data"));
+    it("should return 400 when user creation fails with validation error", async () => {
+      userService.createUser.mockRejectedValue(new BadRequestError("Invalid user data format"));
 
-      const response = await request(app).post("/api/user").send({ email: "invalid" });
+      const response = await request(app).post("/api/user").send({
+        email: "invalid-email",
+        password: "123",
+      });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe("Invalid user data");
+      expect(response.body.error).toBe("BadRequestError");
+      expect(response.body.message).toBe("Invalid user data format");
     });
 
-    it("should return 401 for unauthorized requests", async () => {
-      userService.createUser.mockRejectedValue(createError(UserCreateError, "Unauthorized request"));
+    it("should return 400 when request body is missing", async () => {
+      userService.createUser.mockRejectedValue(new BadRequestError("User data is required"));
+      const response = await request(app).post("/api/user").send(undefined);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("BadRequestError");
+      expect(response.body.message).toBe("User data is required");
+    });
+
+    it("should return 400 when required fields are missing", async () => {
+      userService.createUser.mockRejectedValue(new BadRequestError("Invalid user data"));
+      const response = await request(app).post("/api/user").send({ email: "test@example.com" }); // missing password
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("BadRequestError");
+      expect(response.body.message).toBe("Invalid user data");
+    });
+
+    it("should return 409 when user already exists", async () => {
+      userService.createUser.mockRejectedValue(new ConflictError("User already exists"));
 
       const response = await request(app)
         .post("/api/user")
-        .send({ email: "test@example.com", password: "password123" });
-
-      expect(response.status).toBe(401);
-      expect(response.body.error).toBe("Unauthorized request");
-    });
-
-    it("should return 403 for permission denied", async () => {
-      userService.createUser.mockRejectedValue(createError(UserCreateError, "Permission denied"));
-
-      const response = await request(app)
-        .post("/api/user")
-        .send({ email: "test@example.com", password: "password123" });
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe("Permission denied");
-    });
-
-    it("should return 409 if user already exists", async () => {
-      userService.createUser.mockRejectedValue(createError(UserExistsError, "User already exists"));
-
-      const response = await request(app)
-        .post("/api/user")
-        .send({ email: "test@example.com", password: "password123" });
+        .send({ email: "existing@example.com", password: "password123" });
 
       expect(response.status).toBe(409);
-      expect(response.body.error).toBe("User already exists");
+      expect(response.body.error).toBe("ConflictError");
+      expect(response.body.message).toBe("User already exists");
     });
 
-    it("should return 500 for unexpected errors", async () => {
-      userService.createUser.mockRejectedValue(createError(Error, "Unexpected error"));
+    it("should return 500 on unexpected errors", async () => {
+      userService.createUser.mockRejectedValue(new DatabaseError("Database error"));
 
-      const response = await request(app).post("/api/user").send({ email: "test@example.com" });
+      const response = await request(app)
+        .post("/api/user")
+        .send({ email: "test@example.com", password: "password123" });
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe("Unexpected error");
+      expect(response.body.error).toBe("DatabaseError");
+      expect(response.body.message).toBe("Database error");
     });
   });
 
   describe("GET /api/user", () => {
-    it("should return all users and status 200", async () => {
-      const users = [
-        { id: "test-uid", email: "fake-email-1@example.com" },
-        { id: "test-uid-2", email: "fake-email-2@example.com" },
-        { id: "test-uid-3", email: "fake-email-3@example.com" },
-        { id: "test-uid-4", email: "fake-email-4@example.com" },
+    beforeEach(() => {
+      (AuthenticateSession.verifySession as jest.Mock).mockImplementation((req, res, next) => {
+        req.user = { uid: "1" };
+        next();
+      });
+    });
+
+    it("should return all users with status 200", async () => {
+      const mockUser = { id: "1", email: "test@example.com" };
+
+      userService.getUser.mockResolvedValue(mockUser);
+      const mockUsers = [
+        { id: "1", email: "user1@example.com" },
+        { id: "2", email: "user2@example.com" },
       ];
-      userService.getAllUsers.mockResolvedValue(users);
+
+      userService.getAllUsers.mockResolvedValue(mockUsers);
 
       const response = await request(app).get("/api/user");
 
-      expect(userService.getAllUsers).toHaveBeenCalled();
       expect(response.status).toBe(200);
-      expect(response.body.users).toEqual(users);
+      expect(response.body.users).toEqual(mockUsers);
     });
 
-    it("should return 401 for unauthorized request", async () => {
-      userService.getAllUsers.mockRejectedValue(createError(UserGetAllError, "Unauthorized request"));
+    it("should return 404 when no users are found", async () => {
+      userService.getAllUsers.mockRejectedValue(new UsersNotFoundError("No users found"));
 
-      const response = await request(app).get("/api/user");
-
-      expect(response.status).toBe(401);
-      expect(response.body.error).toBe("Unauthorized request");
-    });
-
-    it("should return 403 for permission denied", async () => {
-      userService.getAllUsers.mockRejectedValue(createError(UserGetAllError, "Permission denied"));
-
-      const response = await request(app).get("/api/user");
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe("Permission denied");
-    });
-
-    it("should return 404 if no users found", async () => {
-      userService.getAllUsers.mockRejectedValue(createError(UsersNotFoundError, "Users not found"));
+      const error = new UsersNotFoundError("No users found");
+      Object.defineProperty(error, "message", { value: "No users found" });
+      userService.getAllUsers.mockRejectedValue(error);
 
       const response = await request(app).get("/api/user");
 
       expect(response.status).toBe(404);
-      expect(response.body.error).toBe("Users not found");
+      expect(response.body.error).toBe("NotFoundError");
+      expect(response.body.message).toBe("No users found");
     });
 
-    it("should return 500 for unexpected errors", async () => {
-      userService.getAllUsers.mockRejectedValue(new Error("Unexpected error"));
+    it("should return 500 on unexpected errors", async () => {
+      userService.getAllUsers.mockRejectedValue(new DatabaseError("Database connection error"));
 
       const response = await request(app).get("/api/user");
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe("Unexpected error");
+      expect(response.body.error).toBe("DatabaseError");
+      expect(response.body.message).toBe("Database connection error");
     });
   });
 
   describe("GET /api/user/:id", () => {
-    it("should return user data and status 200", async () => {
-      const userData = { id: "1", email: "test@example.com" };
-      userService.getUser.mockResolvedValue(userData);
+    beforeEach(() => {
+      (AuthenticateSession.verifySession as jest.Mock).mockImplementation((req, res, next) => {
+        req.user = { uid: "1" };
+        next();
+      });
+    });
+
+    it("should return user data with status 200", async () => {
+      const mockUser = { id: "1", email: "test@example.com" };
+
+      userService.getUser.mockResolvedValue(mockUser);
 
       const response = await request(app).get("/api/user/1");
 
-      expect(userService.getUser).toHaveBeenCalledWith("1");
       expect(response.status).toBe(200);
-      expect(response.body.userData).toEqual(userData);
+      expect(response.body.userData).toEqual(mockUser);
     });
 
-    it("should return 401 if user ID is missing", async () => {
-      (AuthenticateSession.verifyToken as jest.Mock).mockImplementation((req, res, next) => {
-        req.user = {};
-        next();
+    it("should return 401 when user is not authenticated", async () => {
+      (AuthenticateSession.verifySession as jest.Mock).mockImplementation((req, res, next) => {
+        const error = new AuthenticationError("Invalid or expired token");
+        APIError.handleControllerError(res, error);
       });
 
       const response = await request(app).get("/api/user/1");
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe("User ID missing");
+      expect(response.body.error).toBe("AuthenticationError");
+      expect(response.body.message).toBe("Invalid or expired token");
     });
 
-    it("should return 403 for permission denied", async () => {
-      userService.getUser.mockRejectedValue(createError(UserGetError, "Permission denied"));
-
-      const response = await request(app).get("/api/user/1");
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe("Permission denied");
-    });
-
-    it("should return 404 if user not found", async () => {
-      userService.getUser.mockRejectedValue(createError(UserNotFoundError, "User not found"));
+    it("should return 404 when user is not found", async () => {
+      const error = new UserNotFoundError("User not found");
+      Object.defineProperty(error, "message", { value: "User not found" });
+      userService.getUser.mockRejectedValue(error);
 
       const response = await request(app).get("/api/user/1");
 
       expect(response.status).toBe(404);
-      expect(response.body.error).toBe("User not found");
+      expect(response.body.error).toBe("NotFoundError");
+      expect(response.body.message).toBe("User not found");
     });
 
-    it("should return 500 for unexpected errors", async () => {
-      userService.getUser.mockRejectedValue(new Error("Unexpected error"));
+    it("should return 500 on unexpected errors", async () => {
+      userService.getUser.mockRejectedValue(new DatabaseError("Database error"));
 
       const response = await request(app).get("/api/user/1");
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe("Unexpected error");
+      expect(response.body.error).toBe("DatabaseError");
+      expect(response.body.message).toBe("Database error");
     });
   });
 
-  describe("PUT /api/user", () => {
+  describe("PUT /api/user/:id", () => {
+    beforeEach(() => {
+      (AuthenticateSession.verifySession as jest.Mock).mockImplementation((req, res, next) => {
+        req.user = { uid: "1" };
+        next();
+      });
+    });
+
     it("should update user and return 200", async () => {
-      userService.updateUser.mockResolvedValue({ success: true });
       const updateData = { email: "updated@example.com" };
+      userService.updateUser.mockResolvedValue({ success: true });
 
       const response = await request(app).put("/api/user/1").send(updateData);
 
@@ -245,56 +238,73 @@ describe("UserController", () => {
       expect(response.body.message).toBe("User updated successfully");
     });
 
-    it("should return 400 for invalid data", async () => {
-      userService.updateUser.mockRejectedValue(createError(UserUpdateError, "Invalid user data"));
+    it("should return 400 when update fails with validation error", async () => {
+      userService.updateUser.mockRejectedValue(new BadRequestError("Invalid user data"));
 
-      const response = await request(app).put("/api/user/1").send({ email: "invalid" });
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe("Invalid user data");
-    });
-
-    it("should return 401 if user ID is missing", async () => {
-      (AuthenticateSession.verifyToken as jest.Mock).mockImplementation((req, res, next) => {
-        req.user = {};
-        next();
+      const response = await request(app).put("/api/user/1").send({
+        email: "invalid-email",
+        someInvalidField: "value",
       });
 
-      const response = await request(app).put("/api/user/1").send({ email: "updated@example.com" });
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("BadRequestError");
+      expect(response.body.message).toBe("Invalid user data");
+    });
+
+    it("should return 400 when update data is missing", async () => {
+      userService.updateUser.mockRejectedValue(new BadRequestError("Update data is required"));
+
+      const response = await request(app).put("/api/user/1").send();
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("BadRequestError");
+      expect(response.body.message).toBe("Update data is required");
+    });
+
+    it("should return 401 when user is not authenticated", async () => {
+      (AuthenticateSession.verifySession as jest.Mock).mockImplementation((req, res, next) => {
+        const error = new AuthenticationError("Invalid or expired token");
+        APIError.handleControllerError(res, error);
+      });
+
+      const response = await request(app).put("/api/user/1").send({ email: "test@example.com" });
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe("User ID missing");
+      expect(response.body.error).toBe("AuthenticationError");
+      expect(response.body.message).toBe("Invalid or expired token");
     });
 
-    it("should return 403 for permission denied", async () => {
-      userService.updateUser.mockRejectedValue(createError(UserUpdateError, "Permission denied"));
+    it("should return 404 when user is not found", async () => {
+      const error = new UserNotFoundError("User not found");
+      Object.defineProperty(error, "message", { value: "User not found" });
+      userService.updateUser.mockRejectedValue(error);
 
-      const response = await request(app).put("/api/user/1").send({ email: "updated@example.com" });
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe("Permission denied");
-    });
-
-    it("should return 404 if user not found", async () => {
-      userService.updateUser.mockRejectedValue(createError(UserNotFoundError, "User not found"));
-
-      const response = await request(app).put("/api/user/1").send({ email: "updated@example.com" });
+      const response = await request(app).put("/api/user/1").send({ email: "test@example.com" });
 
       expect(response.status).toBe(404);
-      expect(response.body.error).toBe("User not found");
+      expect(response.body.error).toBe("NotFoundError");
+      expect(response.body.message).toBe("User not found");
     });
 
-    it("should return 500 for unexpected errors", async () => {
-      userService.updateUser.mockRejectedValue(new Error("Unexpected error"));
+    it("should return 500 on unexpected errors", async () => {
+      userService.updateUser.mockRejectedValue(new DatabaseError("Database error"));
 
       const response = await request(app).put("/api/user/1").send({ email: "test@example.com" });
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe("Unexpected error");
+      expect(response.body.error).toBe("DatabaseError");
+      expect(response.body.message).toBe("Database error");
     });
   });
 
   describe("DELETE /api/user/:id", () => {
+    beforeEach(() => {
+      (AuthenticateSession.verifySession as jest.Mock).mockImplementation((req, res, next) => {
+        req.user = { uid: "1" };
+        next();
+      });
+    });
+
     it("should delete user and return 200", async () => {
       userService.deleteUser.mockResolvedValue({ success: true });
 
@@ -305,49 +315,39 @@ describe("UserController", () => {
       expect(response.body.message).toBe("User deleted successfully");
     });
 
-    it("should return 400 for invalid request", async () => {
-      userService.deleteUser.mockRejectedValue(createError(UserDeleteError, "Invalid user data"));
-
-      const response = await request(app).delete("/api/user/invalid-id");
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe("Invalid user data");
-    });
-
-    it("should return 401 for unauthorized request", async () => {
-      userService.deleteUser.mockRejectedValue(createError(UserDeleteError, "Unauthorized request"));
+    it("should return 401 when user is not authenticated", async () => {
+      (AuthenticateSession.verifySession as jest.Mock).mockImplementation((req, res, next) => {
+        const error = new AuthenticationError("Invalid or expired token");
+        APIError.handleControllerError(res, error);
+      });
 
       const response = await request(app).delete("/api/user/1");
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe("Unauthorized request");
+      expect(response.body.error).toBe("AuthenticationError");
+      expect(response.body.message).toBe("Invalid or expired token");
     });
 
-    it("should return 403 for permission denied", async () => {
-      userService.deleteUser.mockRejectedValue(createError(UserDeleteError, "Permission denied"));
-
-      const response = await request(app).delete("/api/user/1");
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe("Permission denied");
-    });
-
-    it("should return 404 if user not found", async () => {
-      userService.deleteUser.mockRejectedValue(createError(UserNotFoundError, "User not found"));
+    it("should return 404 when user is not found", async () => {
+      const error = new UserNotFoundError("User not found");
+      Object.defineProperty(error, "message", { value: "User not found" });
+      userService.deleteUser.mockRejectedValue(error);
 
       const response = await request(app).delete("/api/user/1");
 
       expect(response.status).toBe(404);
-      expect(response.body.error).toBe("User not found");
+      expect(response.body.error).toBe("NotFoundError");
+      expect(response.body.message).toBe("User not found");
     });
 
-    it("should return 500 for unexpected errors", async () => {
-      userService.deleteUser.mockRejectedValue(new Error("Unexpected error"));
+    it("should return 500 on unexpected errors", async () => {
+      userService.deleteUser.mockRejectedValue(new DatabaseError("Database error"));
 
       const response = await request(app).delete("/api/user/1");
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe("Unexpected error");
+      expect(response.body.error).toBe("DatabaseError");
+      expect(response.body.message).toBe("Database error");
     });
   });
 });
