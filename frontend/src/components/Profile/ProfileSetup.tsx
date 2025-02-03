@@ -39,12 +39,10 @@ export const ProfileSetup = () => {
     phoneNumber: "",
     userType: "" as ProfileType,
     addressType: "" as AddressType,
-    street: "",
-    city: "",
-    state: "" as State,
-    zip: "",
-    latitude: "",
-    longitude: "",
+    addressStreet: "",
+    addressCity: "",
+    addressState: "" as State,
+    addressZip: "",
   });
 
   const { createUser, isCreatingUser } = useUserProfile();
@@ -146,7 +144,7 @@ export const ProfileSetup = () => {
     const fieldsToValidate = ["displayName", "phoneNumber", "userType"];
 
     if (formValues.userType === ProfileType.AFFECTED) {
-      fieldsToValidate.push("street", "city", "state", "zip");
+      fieldsToValidate.push("addressStreet", "addressCity", "addressState", "addressZip");
     }
 
     const newErrors: { [key: string]: string } = {};
@@ -172,10 +170,10 @@ export const ProfileSetup = () => {
           ...(formValues.userType === ProfileType.AFFECTED && {
             address: {
               type: AddressType.DROPOFF,
-              street: formValues.street,
-              city: formValues.city,
-              state: formValues.state as State,
-              zip: formValues.zip,
+              street: formValues.addressStreet,
+              city: formValues.addressCity,
+              state: formValues.addressState as State,
+              zip: formValues.addressZip,
               position: {
                 latitude: 0,
                 longitude: 0,

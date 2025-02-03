@@ -61,16 +61,14 @@ const userSlice = createSlice({
         };
       })
       .addMatcher(api.endpoints.validateSession.matchFulfilled, (_state, { payload }) => {
-        console.log("validateSession payload:", payload);
         if (payload.valid && payload.user) {
           if (payload.user.profile) {
-            console.log("Setting profile data:", payload.user.profile);
             return {
               ...payload.user.profile,
               hasProfile: true,
             };
           }
-          console.log("No profile data in payload");
+
           return {
             ...initialState,
             uid: payload.user.uid,
