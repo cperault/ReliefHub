@@ -5,7 +5,7 @@ import { BaseQueryFn, TypedMutationTrigger } from "@reduxjs/toolkit/query/react"
 export interface UserProfileContextType {
   createUser: (userProfile: ProfileUser) => void;
   getUser: () => ProfileUser | undefined;
-  updateUser: TypedMutationTrigger<ProfileUser, { id: string; user: ProfileUser }, BaseQueryFn>;
+  updateUser: TypedMutationTrigger<ProfileUser, { uid: string; user: ProfileUser }, BaseQueryFn>;
   isCreatingUser: boolean;
   isUpdatingUser: boolean;
 }

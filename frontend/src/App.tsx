@@ -26,13 +26,9 @@ import { UserProfileProvider } from "./providers/UserProfileProvider";
 export const App = () => {
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
   const user = useSelector((state: RootState) => state.user);
-  console.log("user", user);
   const userHasProfileSetUp = user.hasProfile;
   const { logout } = useAuth();
   const navigate = useNavigate();
-
-  console.log("isAuthenticated", isAuthenticated);
-  console.log("userHasProfileSetUp", userHasProfileSetUp);
 
   const toolbarIcons = [
     { icon: <AccountCircleOutlined />, label: "Profile", path: "/profile" },

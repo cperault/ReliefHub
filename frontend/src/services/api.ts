@@ -72,24 +72,36 @@ export const api = createApi({
         },
       }),
     }),
-    getUser: builder.query<ProfileUser, { id: string }>({
-      query: (body) => ({
-        url: `user/${body.id}`,
+    getUser: builder.query<ProfileUser, void>({
+      query: () => ({
+        url: "user/profile",
         method: "GET",
       }),
     }),
     createUser: builder.mutation<ProfileUser, ProfileUser>({
       query: (body) => ({
-        url: `user`,
+        url: "user/register",
         method: "POST",
         body: body,
       }),
     }),
-    updateUser: builder.mutation<ProfileUser, { id: string; user: ProfileUser }>({
+    updateUser: builder.mutation<ProfileUser, Partial<ProfileUser>>({
       query: (body) => ({
-        url: `user/${body.id}`,
+        url: "user/profile",
         method: "PUT",
         body: body,
+      }),
+    }),
+    deleteUser: builder.mutation<void, void>({
+      query: () => ({
+        url: "user/profile",
+        method: "DELETE",
+      }),
+    }),
+    getAllUsers: builder.query<ProfileUser[], void>({
+      query: () => ({
+        url: "user/list",
+        method: "GET",
       }),
     }),
   }),
@@ -104,4 +116,6 @@ export const {
   useGetUserQuery,
   useCreateUserMutation,
   useUpdateUserMutation,
+  useDeleteUserMutation,
+  useGetAllUsersQuery,
 } = api;

@@ -10,6 +10,6 @@ export default defineConfig({
       key: fs.readFileSync(path.resolve(__dirname, "./certs/localhost-key.pem")),
       cert: fs.readFileSync(path.resolve(__dirname, "./certs/localhost.pem")),
     },
-    port: parseInt(process.env.BPORT || "3000", 10),
+    port: parseInt(process.env.FPORT || "3000", 10),
   },
 });
