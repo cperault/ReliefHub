@@ -1,15 +1,19 @@
 # backend
 backend/node_modules/
 backend/dist/
-backend/certs/ 
+backend/certs/
+backend/certs/service-account-test.json
+backend/certs/service-account.json
 logs/
 
 # frontend
 frontend/node_modules/
+frontend/dist/
 frontend/certs/
 
 # global
 */**/localhost.pem
 */**/localhost-key.pem
 *.env
+*.env.test
 .DS_Store

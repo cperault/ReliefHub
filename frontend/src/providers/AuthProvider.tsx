@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const handleLogin = async (email: string, password: string): Promise<void> => {
     try {
       const result = await login({ email, password }).unwrap();
-
+      console.log(`result: ${JSON.stringify(result)}`);
       if (result.user.hasProfile) {
         navigate("/map");
       }
@@ -82,7 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const handleRegister = async (email: string, password: string): Promise<void> => {
     try {
       await register({ email, password }).unwrap();
-      toast.success("Registration successful! Please check your email to verify your account.");
+      toast.success("Registration successful and a verification email has been sent.");
       navigate("/sign-in");
     } catch (error) {
       const errorMessage = getErrorMessage(error);

@@ -4,17 +4,17 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
-    "start": "NODE_OPTIONS=--no-warnings ts-node src/server.ts",
-    "dev": "NODE_OPTIONS=--no-warnings nodemon -r ts-node/register src/server.ts",
-    "test": "NODE_OPTIONS=--no-warnings NODE_ENV=test jest",
-    "test:watch": "NODE_OPTIONS=--no-warnings jest --watch",
-    "test:coverage": "jest --coverage"
+    "build": "npx tsc",
+    "start": "NODE_OPTIONS='--no-warnings --no-deprecation' NODE_ENV=prod node dist/src/server.js",
+    "dev": "NODE_OPTIONS='--no-warnings --no-deprecation' NODE_ENV=dev nodemon",
+    "dev:cypress": "NODE_OPTIONS='--no-warnings --no-deprecation' NODE_ENV=dev CYPRESS=true nodemon",
+    "test": "NODE_OPTIONS='--no-warnings --no-deprecation' NODE_ENV=test jest",
+    "test:watch": "NODE_OPTIONS='--no-warnings --no-deprecation' NODE_ENV=test jest --watch",
+    "test:coverage": "NODE_OPTIONS='--no-warnings --no-deprecation' NODE_ENV=test jest --coverage"
   },
   "keywords": [],
   "author": "Christopher Perault",
   "license": "MIT",
-  "type": "commonjs",
   "description": "Backend for ReliefHub, a localized disaster relief platform.",
   "dependencies": {
     "body-parser": "^1.20.3",
@@ -22,6 +22,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
     "firebase": "^11.1.0",
     "firebase-admin": "^13.0.2",
     "helmet": "^8.0.0",
@@ -29,6 +30,7 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@express-rate-limit/tsconfig": "^1.0.2",
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",

@@ -1,8 +1,8 @@
-import { AuthService } from "../services/AuthService";
-import { UserService } from "../services/UserService";
-import { AuthRouter } from "./AuthRouter";
-import { BaseRouter } from "./BaseRouter";
-import { UserRouter } from "./UserRouter";
+import { AuthService } from "../../services/Auth/AuthService";
+import { UserService } from "../../services/User/UserService";
+import { AuthRouter } from "../Auth/AuthRouter";
+import { BaseRouter } from "../BaseRouter";
+import { UserRouter } from "../User/UserRouter";
 
 export class APIRouter extends BaseRouter {
   private authService: AuthService;
@@ -14,8 +14,8 @@ export class APIRouter extends BaseRouter {
     this.userService = userService;
   }
 
-  protected initializeRoutes(): void {
+  protected initializeRoutes = (): void => {
     this.router.use("/auth", new AuthRouter(this.authService, this.userService).getRouter());
     this.router.use("/user", new UserRouter(this.userService).getRouter());
-  }
+  };
 }

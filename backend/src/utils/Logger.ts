@@ -1,17 +1,28 @@
-import winston from "winston";
+import winston, { format } from "winston";
+import path from "path";
 
 export type LogLevel = "error" | "warn" | "info" | "debug";
+export type LogMeta = Record<string, unknown> | Error | unknown;
 
-export interface LogLevels {
-  levels: Record<LogLevel, number>;
-  colors: Record<LogLevel, string>;
+interface LogConfig {
+  env: string;
+  logDir: string;
+  consoleLevel: LogLevel;
+  fileLevel: LogLevel;
 }
 
+const DEFAULT_CONFIG: LogConfig = {
+  env: process.env.NODE_ENV || "dev",
+  logDir: path.join(process.cwd(), "logs"),
+  consoleLevel: "debug",
+  fileLevel: "info",
+} as const;
+
 export class Logger {
-  private static instance: Logger | null = null;
+  private static instance: Logger;
   private logger: winston.Logger;
 
-  private logLevels: LogLevels = {
+  private static readonly LOG_LEVELS = {
     levels: {
       error: 0,
       warn: 1,
@@ -24,84 +35,111 @@ export class Logger {
       info: "green",
       debug: "cyan",
     },
-  };
+  } as const;
 
-  private constructor() {
+  private constructor(private config: LogConfig = DEFAULT_CONFIG) {
     this.logger = winston.createLogger({
-      levels: this.logLevels.levels,
-      transports: this.getTransports(),
+      levels: Logger.LOG_LEVELS.levels,
+      transports: this.createTransports(),
     });
 
-    winston.addColors(this.logLevels.colors);
+    winston.addColors(Logger.LOG_LEVELS.colors);
   }
 
-  public static getInstance(reset: boolean = false): Logger {
-    if (reset || !this.instance) {
-      this.instance = new Logger();
+  public static getInstance = (config?: Partial<LogConfig>): Logger => {
+    if (!Logger.instance) {
+      Logger.instance = new Logger({
+        ...DEFAULT_CONFIG,
+        ...config,
+      });
     }
+    return Logger.instance;
+  };
 
-    return this.instance;
-  }
+  private createConsoleFormat = (): winston.Logform.Format => {
+    return format.combine(
+      format.colorize(),
+      format.timestamp(),
+      format.printf(({ timestamp, level, message, ...meta }) => {
+        const metaStr = Object.keys(meta).length ? `\n${JSON.stringify(meta, null, 2)}` : "";
+        return `${timestamp} [${level}]: ${message}${metaStr}`;
+      })
+    );
+  };
 
-  public static resetInstance(): void {
-    this.instance = null;
-  }
+  private createFileFormat = (): winston.Logform.Format => {
+    return format.combine(format.timestamp(), format.errors({ stack: true }), format.json());
+  };
 
-  private getTransports() {
-    const env = process.env.NODE_ENV || "dev";
+  private createTransports = (): winston.transport[] => {
     const transports: winston.transport[] = [];
 
-    if (env !== "prod" && env !== "test") {
+    // For unit tests without Cypress, use silent console transport
+    if (this.config.env === "test" && !process.env.CYPRESS) {
+      return [new winston.transports.Console({ silent: true })];
+    }
+
+    // Console transport for development and Cypress tests
+    if (this.config.env === "test" || this.config.env === "dev") {
       transports.push(
         new winston.transports.Console({
-          format: winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.colorize(),
-            winston.format.errors({ stack: env === "dev" }),
-            winston.format.printf(({ timestamp, level, message, stack }) => {
-              return `${timestamp} ${level}: ${message}${stack ? "\n" + stack : ""}`;
-            })
-          ),
+          level: this.config.consoleLevel,
+          format: this.createConsoleFormat(),
         })
       );
     }
 
-    transports.push(
-      new winston.transports.File({
-        filename: "logs/error.log",
-        level: "error",
-        format: winston.format.combine(
-          winston.format.timestamp(),
-          winston.format.errors({ stack: false }),
-          winston.format.json()
-        ),
-      }),
-      new winston.transports.File({
-        filename: "logs/combined.log",
-        format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-      })
-    );
+    // File transports for production
+    if (this.config.env === "prod") {
+      transports.push(
+        new winston.transports.File({
+          filename: path.join(this.config.logDir, "error.log"),
+          level: "error",
+          format: this.createFileFormat(),
+        }),
+        new winston.transports.File({
+          filename: path.join(this.config.logDir, "combined.log"),
+          level: this.config.fileLevel,
+          format: this.createFileFormat(),
+        })
+      );
+    }
 
     return transports;
-  }
+  };
 
-  public log(level: LogLevel, message: string, meta?: any): void {
-    this.logger[level](message, meta);
-  }
+  public log = (level: LogLevel, message: string, meta?: LogMeta): void => {
+    if (meta instanceof Error) {
+      this.logger[level](message, {
+        error: {
+          name: meta.name,
+          message: meta.message,
+          stack: meta.stack,
+        },
+      });
+    } else {
+      this.logger[level](message, meta);
+    }
+  };
 
-  public error(message: string, meta?: any): void {
+  public error = (message: string, meta?: LogMeta): void => {
     this.log("error", message, meta);
-  }
+  };
 
-  public warn(message: string, meta?: any): void {
+  public warn = (message: string, meta?: LogMeta): void => {
     this.log("warn", message, meta);
-  }
+  };
 
-  public info(message: string, meta?: any): void {
+  public info = (message: string, meta?: LogMeta): void => {
     this.log("info", message, meta);
-  }
+  };
 
-  public debug(message: string, meta?: any): void {
+  public debug = (message: string, meta?: LogMeta): void => {
     this.log("debug", message, meta);
-  }
+  };
+
+  // For testing purposes only
+  public static resetInstance = (): void => {
+    Logger.instance = undefined as any;
+  };
 }
