@@ -11,18 +11,18 @@ export class UserRouter extends BaseRouter {
     this.userController = new UserController(userService);
   }
 
-  protected initializeRoutes = (): void => {
+  protected initializeRoutes(): void {
     this.router.use(RateLimiter.api);
 
     // Profile setup for authenticated users
-    this.router.post("/register", this.userController.createUser);
+    this.router.post("/register", this.userController.createUser.bind(this.userController));
 
     // Admin-only routes -- Firestore rules enforce this
-    this.router.get("/list", this.userController.getAllUsers);
+    this.router.get("/list", this.userController.getAllUsers.bind(this.userController));
 
     // User profile management
-    this.router.get("/profile", this.userController.getUserById);
-    this.router.put("/profile", this.userController.updateUser);
-    this.router.delete("/profile", this.userController.deleteUser);
-  };
+    this.router.get("/profile", this.userController.getUserById.bind(this.userController));
+    this.router.put("/profile", this.userController.updateUser.bind(this.userController));
+    this.router.delete("/profile", this.userController.deleteUser.bind(this.userController));
+  }
 }

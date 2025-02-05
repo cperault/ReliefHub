@@ -20,6 +20,11 @@ interface ValidateSessionResult {
   user: AuthUser & { profile?: ProfileUser };
 }
 
+interface CreateUserResponse {
+  message: string;
+  user: ProfileUser;
+}
+
 export interface ProfileUser {
   uid: string;
   displayName: string;
@@ -78,11 +83,11 @@ export const api = createApi({
         method: "GET",
       }),
     }),
-    createUser: builder.mutation<ProfileUser, ProfileUser>({
+    createUser: builder.mutation<CreateUserResponse, { user: ProfileUser }>({
       query: (body) => ({
         url: "user/register",
         method: "POST",
-        body: body,
+        body: body.user,
       }),
     }),
     updateUser: builder.mutation<ProfileUser, Partial<ProfileUser>>({

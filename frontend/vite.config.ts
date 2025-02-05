@@ -12,4 +12,9 @@ export default defineConfig({
     },
     port: parseInt(process.env.FPORT || "3000", 10),
   },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
 });

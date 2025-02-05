@@ -32,7 +32,7 @@ export class FirebaseService {
     this.initializeAdminSDK();
   }
 
-  private initializeConfig = (): void => {
+  private initializeConfig(): void {
     const requiredEnvVars = {
       FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
       FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN,
@@ -59,27 +59,27 @@ export class FirebaseService {
       appId: requiredEnvVars.FIREBASE_APP_ID!,
       measurementId: process.env.FIREBASE_MEASUREMENT_ID,
     };
-  };
+  }
 
-  private initializeClientSDK = (): void => {
+  private initializeClientSDK(): void {
     try {
       this.app = getApps().length === 0 ? initializeApp(this.config) : getApp();
     } catch (error) {
-      throw new Error("Failed to initialize Firebase Client SDK");
+      throw new Error(`Failed to initialize Firebase Client SDK: ${error}`);
     }
-  };
+  }
 
-  private getServiceConfig = (): ServiceConfig => {
+  private getServiceConfig(): ServiceConfig {
     const isTestEnv = process.env.NODE_ENV === "test" || process.env.NODE_ENV === "dev" || process.env.CYPRESS;
     const serviceAccountFileName = isTestEnv ? "service-account-test.json" : "service-account.json";
 
     return {
-      serviceAccountPath: path.join(__dirname, "../../certs", serviceAccountFileName),
+      serviceAccountPath: path.join(__dirname, "../../../certs", serviceAccountFileName),
       databaseURL: `https://${this.config.projectId}.firebaseio.com`,
     };
-  };
+  }
 
-  private initializeAdminSDK = (): void => {
+  private initializeAdminSDK(): void {
     try {
       const { serviceAccountPath, databaseURL } = this.getServiceConfig();
 
@@ -92,39 +92,39 @@ export class FirebaseService {
         this.adminApp = admin.app();
       }
     } catch (error) {
-      throw new Error("Failed to initialize Firebase Admin SDK");
+      throw new Error(`Failed to initialize Firebase Admin SDK: ${error}`);
     }
-  };
+  }
 
-  public getFirebaseAuth = (): Auth => {
+  public getFirebaseAuth(): Auth {
     try {
       return getAuth(this.app);
     } catch (error) {
       throw new Error("Failed to get Firebase Auth instance");
     }
-  };
+  }
 
-  public getAdminFirestore = (): Firestore => {
+  public getAdminFirestore(): Firestore {
     try {
       return admin.firestore();
     } catch (error) {
       throw new Error("Failed to get Admin Firestore instance");
     }
-  };
+  }
 
-  public getClientFirestore = (): ClientFirestore => {
+  public getClientFirestore(): ClientFirestore {
     try {
       return getClientFirestore(this.app);
     } catch (error) {
       throw new Error("Failed to get Client Firestore instance");
     }
-  };
+  }
 
-  public getAdminAuth = (): AdminAuth => {
+  public getAdminAuth(): AdminAuth {
     try {
       return admin.auth();
     } catch (error) {
       throw new Error("Failed to get Admin Auth instance");
     }
-  };
+  }
 }

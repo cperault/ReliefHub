@@ -2,7 +2,6 @@ import { ReactNode, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {
-  AuthUser,
   useLoginMutation,
   useLogoutMutation,
   useRegisterMutation,
@@ -15,14 +14,11 @@ import { AuthContext, AuthContextType } from "../context/AuthContext";
 import { AppDispatch, RootState } from "../state/store";
 
 type FirebaseAuthError = {
-  status?: number;
-  data?: {
-    user: AuthUser;
-    message: string;
-    error?: {
-      code: string;
-      message: string;
-    };
+  status: number;
+  data: {
+    error: string;
+    code: string;
+    errors?: Record<string, string>;
   };
 };
 
@@ -48,20 +44,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const errorMessages: Record<string, string> = {
     "auth/invalid-credential": "Incorrect email or password. Please try again.",
+    "auth/email-already-in-use": "Email already in use. Please try a different email.",
     // TODO: Add more Firebase error codes as necessary
   };
 
   const getErrorMessage = (error: unknown): string => {
     const firebaseError = error as FirebaseAuthError;
-    const errorCode = firebaseError?.data?.error?.code ?? "";
+    const errorCode = firebaseError?.data?.code;
 
-    return errorMessages[errorCode] || "An unknown error occurred. Please try again.";
+    if (errorCode) {
+      return errorMessages[errorCode] || firebaseError.data.error;
+    }
+
+    return "An unknown error occurred. Please try again.";
   };
 
   const handleLogin = async (email: string, password: string): Promise<void> => {
     try {
       const result = await login({ email, password }).unwrap();
-      console.log(`result: ${JSON.stringify(result)}`);
+
       if (result.user.hasProfile) {
         navigate("/map");
       }

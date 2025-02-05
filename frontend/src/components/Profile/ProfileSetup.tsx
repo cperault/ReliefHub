@@ -182,10 +182,12 @@ export const ProfileSetup = () => {
           }),
         };
 
-        createUser(data);
-        handleSuccess(data);
-      } catch (error) {
-        toast.error("Oops. Something went wrong while saving your profile: " + error);
+        const result = await createUser({ user: data }).unwrap();
+        handleSuccess(result.user);
+      } catch (error: any) {
+        console.error("Profile creation error:", error);
+        const errorMessage = error?.data?.message || "Something went wrong while saving your profile";
+        toast.error(errorMessage);
       }
     }
   };

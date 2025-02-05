@@ -32,6 +32,7 @@ export type SessionValidationResult = {
   user: {
     uid: string;
     email: string;
+    emailVerified: boolean;
   };
 };
 
@@ -46,11 +47,7 @@ export class AuthService {
     this.logger = Logger.getInstance();
   }
 
-  private handleAuthError = (
-    error: unknown,
-    operation: string,
-    ErrorClass: AuthErrorType = AuthServiceError
-  ): never => {
+  private handleAuthError(error: unknown, operation: string, ErrorClass: AuthErrorType = AuthServiceError): never {
     if (error && typeof error === "object" && "code" in error) {
       this.logger.error(`Firebase Auth error during ${operation}:`, error);
 
@@ -59,29 +56,37 @@ export class AuthService {
       switch (authError.code) {
         case "auth/user-not-found":
         case "auth/wrong-password":
-          throw new ErrorClass("Invalid email or password");
-        case "auth/invalid-email":
-          throw new ValidationError("Invalid email format", "VALIDATION_ERROR", { email: "Invalid email format" });
-        case "auth/email-already-in-use":
-          throw new ErrorClass("Email already in use");
-        case "auth/weak-password":
-          throw new ValidationError("Password is too weak", "VALIDATION_ERROR", { password: "Password is too weak" });
         case "auth/invalid-credential":
-          throw new ErrorClass("Invalid credentials");
+          throw new AuthenticationError("Invalid email or password", authError.code);
+        case "auth/invalid-email":
+          throw new ValidationError("Invalid email format", authError.code, { email: "Invalid email format" });
+        case "auth/email-already-in-use":
+          throw new ConflictError("Email already in use", authError.code);
+        case "auth/weak-password":
+          throw new ValidationError("Password is too weak", authError.code, { password: "Password is too weak" });
         case "auth/too-many-requests":
-          throw new AuthenticationError("Too many requests, please try again later");
+          throw new AuthenticationError("Too many requests, please try again later", authError.code);
+        case "auth/user-disabled":
+          throw new AuthenticationError("This account has been disabled", authError.code);
+        case "auth/operation-not-allowed":
+          throw new AuthenticationError("Operation not allowed", authError.code);
+        case "auth/popup-closed-by-user":
+          throw new AuthenticationError("Authentication popup was closed", authError.code);
         default:
-          throw new ErrorClass(process.env.NODE_ENV === "dev" ? authError.message : "An authentication error occurred");
+          throw new AuthServiceError(
+            process.env.NODE_ENV === "dev" ? authError.message : "An authentication error occurred",
+            authError.code
+          );
       }
     }
 
     throw new AuthServiceError((error as Error).message);
-  };
+  }
 
-  private handleAuthOperation = async (
+  private async handleAuthOperation(
     operationName: string,
     operation: () => Promise<UserCredential | void>
-  ): Promise<AuthResult> => {
+  ): Promise<AuthResult> {
     try {
       const result = await operation();
 
@@ -107,9 +112,9 @@ export class AuthService {
     } catch (error: unknown) {
       throw this.handleAuthError(error, operationName, AuthServiceError);
     }
-  };
+  }
 
-  public createSessionCookie = async (token: string): Promise<string> => {
+  public async createSessionCookie(token: string): Promise<string> {
     try {
       const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
 
@@ -117,60 +122,79 @@ export class AuthService {
     } catch (error) {
       throw new AuthServiceError("Error creating session cookie");
     }
-  };
+  }
 
-  public validateSession = async (sessionCookie: string): Promise<SessionValidationResult> => {
+  public async validateSession(sessionCookie: string): Promise<SessionValidationResult> {
     try {
-      const decodedClaims = await this.adminAuth.verifySessionCookie(sessionCookie, false);
+      const decodedClaims = await this.adminAuth.verifySessionCookie(sessionCookie, true);
+
+      if (!decodedClaims.email_verified) {
+        return {
+          valid: false,
+          user: {
+            uid: decodedClaims.uid,
+            email: decodedClaims.email ?? "",
+            emailVerified: false,
+          },
+        };
+      }
 
       return {
         valid: true,
         user: {
           uid: decodedClaims.uid,
           email: decodedClaims.email ?? "",
+          emailVerified: decodedClaims.email_verified ?? false,
         },
       };
     } catch (error) {
-      throw new AuthenticationError("Invalid or expired session");
+      return {
+        valid: false,
+        user: {
+          uid: "",
+          email: "",
+          emailVerified: false,
+        },
+      };
     }
-  };
+  }
 
-  public verifyAuthToken = async (authToken: string): Promise<TokenVerificationResult> => {
+  public async verifyAuthToken(authToken: string): Promise<TokenVerificationResult> {
     try {
       const decodedToken = await this.adminAuth.verifyIdToken(authToken);
       return { uid: decodedToken.uid, email: decodedToken.email };
     } catch (error) {
       throw new AuthenticationError("Invalid or expired token");
     }
-  };
+  }
 
-  public logout = async (): Promise<void> => {
+  public async logout(): Promise<void> {
     try {
       await signOut(this.auth);
     } catch (error) {
       throw new AuthServiceError("Error logging out");
     }
-  };
+  }
 
-  public authenticateUser = async (email: string, password: string): Promise<AuthResult> => {
+  public async authenticateUser(email: string, password: string): Promise<AuthResult> {
     return await this.handleAuthOperation(
       "login",
       async () => await signInWithEmailAndPassword(this.auth, email, password)
     );
-  };
+  }
 
-  public registerUser = async (email: string, password: string): Promise<AuthResult> => {
+  public async registerUser(email: string, password: string): Promise<AuthResult> {
     return await this.handleAuthOperation(
       "register",
       async () => await createUserWithEmailAndPassword(this.auth, email, password)
     );
-  };
+  }
 
-  public sendVerificationEmail = async (user: User): Promise<AuthResult> => {
+  public async sendVerificationEmail(user: User): Promise<AuthResult> {
     return await this.handleAuthOperation("verifyEmail", async () => await sendEmailVerification(user));
-  };
+  }
 
-  public resetPassword = async (email: string): Promise<AuthResult> => {
+  public async resetPassword(email: string): Promise<AuthResult> {
     return await this.handleAuthOperation("reset", async () => await sendPasswordResetEmail(this.auth, email));
-  };
+  }
 }
