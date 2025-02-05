@@ -12,11 +12,11 @@ export class AuthRouter extends BaseRouter {
     this.authController = new AuthController(authService, userService);
   }
 
-  protected initializeRoutes = (): void => {
-    this.router.post("/login", RateLimiter.auth, this.authController.login);
-    this.router.post("/register", RateLimiter.auth, this.authController.register);
-    this.router.post("/reset-password", RateLimiter.auth, this.authController.resetPassword);
-    this.router.post("/logout", this.authController.logout);
-    this.router.get("/validate-session", this.authController.validateSession);
-  };
+  protected initializeRoutes(): void {
+    this.router.post("/login", RateLimiter.auth, this.authController.login.bind(this.authController));
+    this.router.post("/register", RateLimiter.auth, this.authController.register.bind(this.authController));
+    this.router.post("/reset-password", RateLimiter.auth, this.authController.resetPassword.bind(this.authController));
+    this.router.post("/logout", this.authController.logout.bind(this.authController));
+    this.router.get("/validate-session", this.authController.validateSession.bind(this.authController));
+  }
 }

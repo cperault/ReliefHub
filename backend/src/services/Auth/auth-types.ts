@@ -12,8 +12,8 @@ export class AuthServiceError extends Error {
 }
 
 export class AuthenticationError extends AuthServiceError {
-  constructor(message = "Authentication error") {
-    super(message, "AUTHENTICATION_ERROR", 401);
+  constructor(message = "Authentication error", code = "AUTHENTICATION_ERROR") {
+    super(message, code, 401);
   }
 }
 
@@ -24,7 +24,7 @@ export class ValidationError extends AuthServiceError {
 }
 
 export class ConflictError extends AuthServiceError {
-  constructor(message = "Conflict error") {
-    super(message, "CONFLICT_ERROR", 409);
+  constructor(message = "Conflict error", code = "CONFLICT_ERROR") {
+    super(message, code, 409);
   }
 }

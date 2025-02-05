@@ -46,7 +46,7 @@ export class Logger {
     winston.addColors(Logger.LOG_LEVELS.colors);
   }
 
-  public static getInstance = (config?: Partial<LogConfig>): Logger => {
+  public static getInstance(config?: Partial<LogConfig>): Logger {
     if (!Logger.instance) {
       Logger.instance = new Logger({
         ...DEFAULT_CONFIG,
@@ -54,9 +54,9 @@ export class Logger {
       });
     }
     return Logger.instance;
-  };
+  }
 
-  private createConsoleFormat = (): winston.Logform.Format => {
+  private createConsoleFormat(): winston.Logform.Format {
     return format.combine(
       format.colorize(),
       format.timestamp(),
@@ -65,13 +65,13 @@ export class Logger {
         return `${timestamp} [${level}]: ${message}${metaStr}`;
       })
     );
-  };
+  }
 
-  private createFileFormat = (): winston.Logform.Format => {
+  private createFileFormat(): winston.Logform.Format {
     return format.combine(format.timestamp(), format.errors({ stack: true }), format.json());
-  };
+  }
 
-  private createTransports = (): winston.transport[] => {
+  private createTransports(): winston.transport[] {
     const transports: winston.transport[] = [];
 
     // For unit tests without Cypress, use silent console transport
@@ -106,9 +106,9 @@ export class Logger {
     }
 
     return transports;
-  };
+  }
 
-  public log = (level: LogLevel, message: string, meta?: LogMeta): void => {
+  public log(level: LogLevel, message: string, meta?: LogMeta): void {
     if (meta instanceof Error) {
       this.logger[level](message, {
         error: {
@@ -120,26 +120,26 @@ export class Logger {
     } else {
       this.logger[level](message, meta);
     }
-  };
+  }
 
-  public error = (message: string, meta?: LogMeta): void => {
+  public error(message: string, meta?: LogMeta): void {
     this.log("error", message, meta);
-  };
+  }
 
-  public warn = (message: string, meta?: LogMeta): void => {
+  public warn(message: string, meta?: LogMeta): void {
     this.log("warn", message, meta);
-  };
+  }
 
-  public info = (message: string, meta?: LogMeta): void => {
+  public info(message: string, meta?: LogMeta): void {
     this.log("info", message, meta);
-  };
+  }
 
-  public debug = (message: string, meta?: LogMeta): void => {
+  public debug(message: string, meta?: LogMeta): void {
     this.log("debug", message, meta);
-  };
+  }
 
   // For testing purposes only
-  public static resetInstance = (): void => {
+  public static resetInstance(): void {
     Logger.instance = undefined as any;
-  };
+  }
 }

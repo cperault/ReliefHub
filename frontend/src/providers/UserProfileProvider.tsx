@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { UserProfileContext, UserProfileContextType } from "../context/UserProfileContext";
-import { ProfileUser, useCreateUserMutation, useUpdateUserMutation } from "../services/api";
+import { useCreateUserMutation, useUpdateUserMutation, ProfileUser } from "@/services/api";
+import { UserProfileContext, UserProfileContextType } from "@/context/UserProfileContext";
 
 export const UserProfileProvider = ({ children }: { children: ReactNode }) => {
   const [createUser, { isLoading: isCreatingUser }] = useCreateUserMutation();

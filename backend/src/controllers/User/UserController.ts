@@ -12,7 +12,7 @@ export class UserController {
     this.userService = userService;
   }
 
-  public createUser = async (req: Request, res: Response): Promise<void> => {
+  public async createUser(req: Request, res: Response): Promise<void> {
     try {
       const userData: Partial<ProfileUser> = req.body;
 
@@ -46,9 +46,9 @@ export class UserController {
         });
       }
     }
-  };
+  }
 
-  public getAllUsers = async (req: Request, res: Response): Promise<void> => {
+  public async getAllUsers(req: Request, res: Response): Promise<void> {
     try {
       const users: ProfileUser[] = await this.userService.getAllUsers();
 
@@ -68,9 +68,9 @@ export class UserController {
         });
       }
     }
-  };
+  }
 
-  public getUserById = async (req: Request, res: Response): Promise<void> => {
+  public async getUserById(req: Request, res: Response): Promise<void> {
     try {
       const { uid } = req.body as { uid: string };
 
@@ -96,9 +96,9 @@ export class UserController {
         });
       }
     }
-  };
+  }
 
-  public updateUser = async (req: Request, res: Response): Promise<void> => {
+  public async updateUser(req: Request, res: Response): Promise<void> {
     try {
       const updateData: Partial<ProfileUser> = req.body;
 
@@ -134,9 +134,9 @@ export class UserController {
         });
       }
     }
-  };
+  }
 
-  public deleteUser = async (req: Request, res: Response): Promise<void> => {
+  public async deleteUser(req: Request, res: Response): Promise<void> {
     try {
       const { uid } = req.body as { uid: string };
 
@@ -162,5 +162,5 @@ export class UserController {
         });
       }
     }
-  };
+  }
 }

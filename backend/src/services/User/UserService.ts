@@ -1,18 +1,4 @@
-import {
-  doc,
-  collection,
-  DocumentData,
-  DocumentReference,
-  DocumentSnapshot,
-  FirestoreError,
-  getDoc,
-  getDocs,
-  setDoc,
-  deleteDoc,
-  Firestore,
-  QuerySnapshot,
-  CollectionReference,
-} from "firebase/firestore";
+import { Firestore } from "firebase-admin/firestore";
 import { FirebaseService } from "../Firebase/FirebaseService";
 import { Logger } from "../../utils/Logger";
 import { ProfileUser } from "../../types";
@@ -29,47 +15,39 @@ export class UserService {
   private logger: Logger;
 
   constructor(firebaseService: FirebaseService) {
-    this.firestore = firebaseService.getClientFirestore();
+    this.firestore = firebaseService.getAdminFirestore();
     this.logger = Logger.getInstance();
   }
 
-  private handleFirestoreError = (
-    error: unknown,
-    operation: string,
-    ErrorClass: UserErrorType = UserServiceError
-  ): never => {
-    if (error instanceof FirestoreError) {
-      this.logger.error(`Firestore error during ${operation}:`, error);
+  private handleFirestoreError(error: unknown, operation: string, ErrorClass: UserErrorType = UserServiceError): never {
+    this.logger.error(`Firestore error during ${operation}:`, error);
 
-      switch (error.code) {
-        case "unauthenticated":
-          throw new ErrorClass("Unauthorized request", "UNAUTHORIZED", 401);
-        case "permission-denied":
-          throw new ErrorClass("Permission denied", "FORBIDDEN", 403);
-        case "not-found":
-          throw new UserNotFoundError();
-        case "invalid-argument":
-          throw new ErrorClass("Invalid data provided", "INVALID_DATA", 400);
-        case "unavailable":
-          throw new ErrorClass("Service temporarily unavailable", "SERVICE_UNAVAILABLE", 503);
-        default:
-          throw new ErrorClass(error.message, "UNKNOWN_ERROR", 500);
-      }
+    if ((error as any)?.code === "PERMISSION_DENIED") {
+      throw new ErrorClass("Permission denied", "FORBIDDEN", 403);
+    }
+    if ((error as any)?.code === "NOT_FOUND") {
+      throw new UserNotFoundError();
+    }
+    if ((error as any)?.code === "INVALID_ARGUMENT") {
+      throw new ErrorClass("Invalid data provided", "INVALID_DATA", 400);
+    }
+    if ((error as any)?.code === "UNAVAILABLE") {
+      throw new ErrorClass("Service temporarily unavailable", "SERVICE_UNAVAILABLE", 503);
     }
 
     throw new UserServiceError((error as Error).message);
-  };
+  }
 
-  public createUser = async (userData: Partial<ProfileUser>): Promise<ProfileUser> => {
+  public async createUser(userData: Partial<ProfileUser>): Promise<ProfileUser> {
     try {
       if (!userData.uid) {
         throw new InvalidUserDataError("User ID is required");
       }
 
-      const userDocRef: DocumentReference<DocumentData> = doc(this.firestore, "users", userData.uid);
-      const userDocSnap: DocumentSnapshot<DocumentData> = await getDoc(userDocRef);
+      const userDocRef = this.firestore.collection("users").doc(userData.uid);
+      const userDocSnap = await userDocRef.get();
 
-      if (userDocSnap.exists()) {
+      if (userDocSnap.exists) {
         throw new UserExistsError("User already exists");
       }
 
@@ -85,7 +63,7 @@ export class UserService {
         updatedAt: now,
       };
 
-      await setDoc(userDocRef, userProfile);
+      await userDocRef.set(userProfile);
 
       return userProfile;
     } catch (error) {
@@ -94,14 +72,13 @@ export class UserService {
       }
 
       this.handleFirestoreError(error, "createUser", UserServiceError);
-      throw error;
     }
-  };
+  }
 
-  public getAllUsers = async (): Promise<ProfileUser[]> => {
+  public async getAllUsers(): Promise<ProfileUser[]> {
     try {
-      const usersCollectionRef: CollectionReference<DocumentData> = collection(this.firestore, "users");
-      const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(usersCollectionRef);
+      const usersCollectionRef = this.firestore.collection("users");
+      const querySnapshot = await usersCollectionRef.get();
 
       if (querySnapshot.empty) {
         return [];
@@ -114,16 +91,15 @@ export class UserService {
       }
 
       this.handleFirestoreError(error, "getAllUsers", UserServiceError);
-      throw error;
     }
-  };
+  }
 
-  public getUser = async (uid: string): Promise<ProfileUser> => {
+  public async getUser(uid: string): Promise<ProfileUser> {
     try {
-      const userDocRef: DocumentReference<DocumentData> = doc(this.firestore, "users", uid);
-      const userDocSnap: DocumentSnapshot<DocumentData> = await getDoc(userDocRef);
+      const userDocRef = this.firestore.collection("users").doc(uid);
+      const userDocSnap = await userDocRef.get();
 
-      if (!userDocSnap.exists()) {
+      if (!userDocSnap.exists) {
         throw new UserNotFoundError();
       }
 
@@ -134,56 +110,66 @@ export class UserService {
       }
 
       this.handleFirestoreError(error, "getUser", UserServiceError);
-      throw error;
     }
-  };
+  }
 
-  public updateUser = async (uid: string, userData: Partial<ProfileUser>): Promise<ProfileUser> => {
+  public async updateUser(uid: string, userData: Partial<ProfileUser>): Promise<ProfileUser> {
     try {
-      const userDocRef: DocumentReference<DocumentData> = doc(this.firestore, "users", uid);
-      const userDocSnap: DocumentSnapshot<DocumentData> = await getDoc(userDocRef);
+      const userDocRef = this.firestore.collection("users").doc(uid);
+      const userDocSnap = await userDocRef.get();
 
-      if (!userDocSnap.exists()) {
+      if (!userDocSnap.exists) {
         throw new UserNotFoundError();
       }
 
-      const updatedProfile: ProfileUser = {
-        ...(userDocSnap.data() as ProfileUser),
-        ...userData,
-        updatedAt: new Date().toISOString(),
+      // Convert nested objects to dot notation
+      const flattenUpdate = (obj: any, parentKey = ""): Record<string, any> => {
+        return Object.keys(obj).reduce((acc, key) => {
+          const path = parentKey ? `${parentKey}.${key}` : key;
+
+          if (obj[key] && typeof obj[key] === "object" && !Array.isArray(obj[key])) {
+            Object.assign(acc, flattenUpdate(obj[key], path));
+          } else {
+            acc[path] = obj[key];
+          }
+
+          return acc;
+        }, {} as Record<string, any>);
       };
 
-      await setDoc(userDocRef, updatedProfile);
+      const updates = flattenUpdate(userData);
+      updates.updatedAt = new Date().toISOString();
 
-      return updatedProfile;
+      await userDocRef.update(updates);
+
+      const updatedDocSnap = await userDocRef.get();
+
+      return updatedDocSnap.data() as ProfileUser;
     } catch (error) {
       if (error instanceof UserServiceError) {
         throw error;
       }
 
       this.handleFirestoreError(error, "updateUser", UserServiceError);
-
-      throw error;
     }
-  };
+  }
 
-  public deleteUser = async (uid: string): Promise<void> => {
+  public async deleteUser(uid: string): Promise<void> {
     try {
-      const userDocRef: DocumentReference<DocumentData> = doc(this.firestore, "users", uid);
-      const userDocSnap: DocumentSnapshot<DocumentData> = await getDoc(userDocRef);
+      const userDocRef = this.firestore.collection("users").doc(uid);
+      const userDocSnap = await userDocRef.get();
 
-      if (!userDocSnap.exists()) {
+      if (!userDocSnap.exists) {
         throw new UserNotFoundError();
       }
 
-      await deleteDoc(userDocRef);
+      await userDocRef.delete();
     } catch (error) {
       if (error instanceof UserServiceError) {
         throw error;
       }
 
       this.handleFirestoreError(error, "deleteUser", UserServiceError);
-      throw error;
     }
-  };
+  }
 }

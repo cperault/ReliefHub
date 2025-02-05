@@ -26,12 +26,16 @@ export const useFormValidation = () => {
       case "userType":
         return validateUserType(value as ProfileType) ? null : "Please select a profile user type";
       case "addressStreet":
+      case "address.street":
         return validateStreet(value) ? null : "Street address is required";
       case "addressCity":
+      case "address.city":
         return validateCity(value) ? null : "City is required";
       case "addressState":
+      case "address.state":
         return validateState(value) ? null : "Please select a valid state";
       case "addressZip":
+      case "address.zip":
         return validateZip(value) ? null : "Please enter a valid ZIP code";
       default:
         return null;
